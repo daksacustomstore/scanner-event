@@ -704,35 +704,23 @@
 
     // ============================================================
     // KOMUNIKASI KE GOOGLE APPS SCRIPT
-    // GITHUB PAGES -> HIDDEN IFRAME -> APPS SCRIPT HTML BRIDGE
-    // -> google.script.run -> checkQRCode() -> postMessage -> GITHUB
+    // GITHUB PAGES -> JSONP -> APPS SCRIPT
     //
-    // Jalur utama sengaja tidak memakai fetch/CORS dan tidak memakai
-    // JSONP. Iframe menjalankan google.script.run di lingkungan Apps Script
-    // sendiri, lalu hanya mengirim hasil akhirnya ke halaman GitHub.
+    // Tidak memakai fetch, CORS, iframe, postMessage, atau
+    // google.script.run. Apps Script mengembalikan JavaScript
+    // callback melalui <script src="..."> sehingga browser dapat
+    // menerima respons lintas domain secara langsung.
     // ============================================================
     function requestAppsScript(qrText) {
       return new Promise((resolve, reject) => {
-        const requestId =
-          'checkin_' +
-          Date.now() +
-          '_' +
+        const callbackName =
+          "checkinCallback_" +
+          Date.now() + "_" +
           Math.floor(Math.random() * 1000000);
 
-        const iframe = document.createElement('iframe');
+        const script = document.createElement("script");
         let finished = false;
         let timeoutId = null;
-
-        iframe.setAttribute('aria-hidden', 'true');
-        iframe.tabIndex = -1;
-        iframe.style.position = 'fixed';
-        iframe.style.left = '-10000px';
-        iframe.style.top = '-10000px';
-        iframe.style.width = '1px';
-        iframe.style.height = '1px';
-        iframe.style.border = '0';
-        iframe.style.opacity = '0';
-        iframe.style.pointerEvents = 'none';
 
         function cleanup() {
           if (timeoutId) {
@@ -740,10 +728,14 @@
             timeoutId = null;
           }
 
-          window.removeEventListener('message', onMessage);
+          try {
+            delete window[callbackName];
+          } catch (_) {
+            window[callbackName] = undefined;
+          }
 
-          if (iframe.parentNode) {
-            iframe.parentNode.removeChild(iframe);
+          if (script.parentNode) {
+            script.parentNode.removeChild(script);
           }
         }
 
@@ -751,7 +743,7 @@
           if (finished) return;
           finished = true;
           cleanup();
-          resolve(data);
+          resolve(data || {});
         }
 
         function fail(message) {
@@ -761,36 +753,39 @@
           reject(new Error(message));
         }
 
-        function onMessage(event) {
-          // Hanya terima pesan dari iframe request ini.
-          if (event.source !== iframe.contentWindow) return;
+        // Callback HARUS berada di window karena dipanggil langsung
+        // oleh JavaScript yang dikirim dari Apps Script.
+        window[callbackName] = function(data) {
+          succeed(data);
+        };
 
-          const payload = event.data;
-          if (!payload || payload.type !== 'CHECKIN_RESPONSE') return;
-          if (String(payload.requestId || '') !== requestId) return;
+        script.async = true;
+        script.type = "text/javascript";
 
-          succeed(payload.data || {});
-        }
-
-        window.addEventListener('message', onMessage);
+        script.onerror = function() {
+          fail(
+            "Google Apps Script tidak dapat diakses. Pastikan Web App aktif, " +
+            "URL deployment benar, dan aksesnya disetel ke \"Siapa saja\"."
+          );
+        };
 
         timeoutId = setTimeout(() => {
           fail(
-            'Google Apps Script tidak mengirim respons dalam ' +
+            "Google Apps Script tidak mengirim respons dalam " +
             (API_TIMEOUT_MS / 1000) +
-            ' detik. Pastikan deployment Web App aktif, versi terbaru sudah diterapkan, dan aksesnya \"Siapa saja\".'
+            " detik. Jika deployment baru diperbarui, tunggu beberapa saat " +
+            "lalu refresh halaman scanner."
           );
         }, API_TIMEOUT_MS);
 
         const params = new URLSearchParams();
-        params.set('action', 'check');
-        params.set('qr', String(qrText ?? ''));
-        params.set('mode', 'iframe');
-        params.set('requestId', requestId);
-        params.set('_', String(Date.now()));
+        params.set("action", "check");
+        params.set("qr", String(qrText ?? ""));
+        params.set("prefix", callbackName);
+        params.set("_", String(Date.now()));
 
-        iframe.src = GOOGLE_SCRIPT_URL + '?' + params.toString();
-        document.body.appendChild(iframe);
+        script.src = GOOGLE_SCRIPT_URL + "?" + params.toString();
+        document.body.appendChild(script);
       });
     }
 
