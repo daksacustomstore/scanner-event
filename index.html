@@ -1,0 +1,300 @@
+<!DOCTYPE html>
+<html lang="id">
+
+<head>
+
+<meta charset="UTF-8">
+
+<meta
+  name="viewport"
+  content="width=device-width, initial-scale=1.0"
+>
+
+<title>Check-in Event</title>
+
+<script src="https://unpkg.com/html5-qrcode"></script>
+
+<style>
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+
+  margin: 0;
+
+  padding: 20px;
+
+  background: #f3f4f6;
+
+  font-family:
+    Arial,
+    Helvetica,
+    sans-serif;
+
+}
+
+.container {
+
+  max-width: 500px;
+
+  margin: auto;
+
+}
+
+.header {
+
+  text-align: center;
+
+  margin-bottom: 20px;
+
+}
+
+.header h1 {
+
+  margin: 0;
+
+  font-size: 26px;
+
+}
+
+.header p {
+
+  margin-top: 7px;
+
+  color: #666;
+
+}
+
+button {
+
+  width: 100%;
+
+  border: none;
+
+  border-radius: 12px;
+
+  padding: 17px;
+
+  font-size: 18px;
+
+  font-weight: bold;
+
+  background: #1a73e8;
+
+  color: white;
+
+}
+
+button:active {
+
+  transform: scale(.98);
+
+}
+
+#reader {
+
+  display: none;
+
+  width: 100%;
+
+  margin-top: 18px;
+
+  border-radius: 15px;
+
+  overflow: hidden;
+
+  background: black;
+
+}
+
+#status {
+
+  margin-top: 15px;
+
+  padding: 15px;
+
+  background: white;
+
+  border-radius: 12px;
+
+  text-align: center;
+
+  color: #666;
+
+}
+
+</style>
+
+</head>
+
+
+<body>
+
+
+<div class="container">
+
+
+  <div class="header">
+
+    <h1>
+      CHECK-IN EVENT
+    </h1>
+
+    <p>
+      Scan QR Code Peserta
+    </p>
+
+  </div>
+
+
+  <button
+    id="startButton"
+    onclick="startCamera()"
+  >
+
+    📷 MULAI SCANNER
+
+  </button>
+
+
+  <div id="reader"></div>
+
+
+  <div id="status">
+
+    Tekan tombol
+    <b>MULAI SCANNER</b>
+    untuk mengaktifkan kamera.
+
+  </div>
+
+
+</div>
+
+
+<script>
+
+
+let scanner = null;
+
+let scanning = false;
+
+
+function startCamera() {
+
+
+  if (scanning) {
+
+    return;
+
+  }
+
+
+  document
+    .getElementById("startButton")
+    .style.display = "none";
+
+
+  document
+    .getElementById("reader")
+    .style.display = "block";
+
+
+  document
+    .getElementById("status")
+    .innerHTML =
+      "Meminta izin kamera...";
+
+
+  scanner =
+    new Html5Qrcode("reader");
+
+
+  scanner.start(
+
+    {
+      facingMode: {
+        ideal: "environment"
+      }
+    },
+
+    {
+      fps: 10,
+
+      qrbox: {
+        width: 250,
+        height: 250
+      }
+
+    },
+
+    function(decodedText) {
+
+      console.log(
+        "QR:",
+        decodedText
+      );
+
+
+      document
+        .getElementById("status")
+        .innerHTML =
+          "<b>QR TERBACA</b><br><br>" +
+          decodedText;
+
+    },
+
+    function(errorMessage) {
+
+      // Abaikan error pembacaan frame
+
+    }
+
+  )
+
+  .then(function() {
+
+    scanning = true;
+
+    document
+      .getElementById("status")
+      .innerHTML =
+        "📷 Kamera aktif.<br>" +
+        "Arahkan kamera ke QR peserta.";
+
+  })
+
+  .catch(function(error) {
+
+
+    document
+      .getElementById("reader")
+      .style.display = "none";
+
+
+    document
+      .getElementById("startButton")
+      .style.display = "block";
+
+
+    document
+      .getElementById("status")
+      .innerHTML =
+        "<b style='color:red'>" +
+        "KAMERA TIDAK DAPAT DIBUKA" +
+        "</b><br><br>" +
+        error;
+
+  });
+
+}
+
+
+</script>
+
+
+</body>
+
+</html>
