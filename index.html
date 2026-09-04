@@ -17,7 +17,7 @@
     Google Apps Script hanya dipakai sebagai API/database.
 
     Alur:
-    GitHub Pages -> Kamera -> QR -> hidden iframe -> Apps Script -> postMessage -> Sheets
+    GitHub Pages -> Kamera -> QR -> hidden iframe -> Apps Script HTML bridge -> google.script.run -> Sheets -> postMessage
     ============================================================
   -->
 
@@ -704,12 +704,12 @@
 
     // ============================================================
     // KOMUNIKASI KE GOOGLE APPS SCRIPT
-    // GITHUB PAGES -> HIDDEN IFRAME -> APPS SCRIPT
+    // GITHUB PAGES -> HIDDEN IFRAME -> APPS SCRIPT HTML BRIDGE
+    // -> google.script.run -> checkQRCode() -> postMessage -> GITHUB
     //
-    // Jangan memakai <script src="...Apps Script..."> untuk JSONP.
-    // Apps Script dapat mengembalikan halaman HTML hasil redirect, dan
-    // browser modern dapat memblokirnya sebagai MIME text/html.
-    // IFRAME + postMessage menghindari masalah CORS dan MIME tersebut.
+    // Jalur utama sengaja tidak memakai fetch/CORS dan tidak memakai
+    // JSONP. Iframe menjalankan google.script.run di lingkungan Apps Script
+    // sendiri, lalu hanya mengirim hasil akhirnya ke halaman GitHub.
     // ============================================================
     function requestAppsScript(qrText) {
       return new Promise((resolve, reject) => {
