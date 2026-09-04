@@ -1,1015 +1,727 @@
 <!DOCTYPE html>
-<html>
-
+<html lang="id">
 <head>
-
-  <base target="_top">
-  <meta
-    name="viewport"
-    content="width=device-width, initial-scale=1.0, maximum-scale=1.0"
-  >
-
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+  <meta name="theme-color" content="#f3f4f6">
   <title>Check-in Event</title>
 
-  <!-- QR SCANNER LIBRARY -->
+  <!-- QR SCANNER -->
   <script src="https://unpkg.com/html5-qrcode"></script>
 
-
   <style>
-
-    * {
-      box-sizing: border-box;
-    }
-
+    * { box-sizing: border-box; }
 
     body {
-
       margin: 0;
-
-      padding: 0;
-
-      font-family:
-        Arial,
-        Helvetica,
-        sans-serif;
-
-      background:
-        #f3f4f6;
-
-      color: #222;
-
+      min-height: 100vh;
+      padding: 18px;
+      background: #f3f4f6;
+      font-family: Arial, Helvetica, sans-serif;
+      color: #111827;
     }
-
 
     .container {
-
       width: 100%;
-
-      max-width: 520px;
-
-      margin: auto;
-
-      padding:
-        18px;
-
+      max-width: 660px;
+      margin: 0 auto;
     }
-
-
-    /* ==============================
-       HEADER
-       ============================== */
 
     .header {
-
       text-align: center;
-
-      margin-bottom: 18px;
-
+      margin: 18px 0 24px;
     }
-
 
     .header h1 {
-
-      margin:
-        5px 0 6px;
-
-      font-size: 27px;
-
-      font-weight: 700;
-
+      margin: 0 0 10px;
+      font-size: clamp(30px, 7vw, 48px);
+      font-weight: 800;
+      letter-spacing: -1px;
     }
-
 
     .header p {
-
       margin: 0;
-
-      font-size: 15px;
-
-      color: #666;
-
+      color: #667085;
+      font-size: clamp(18px, 4vw, 24px);
     }
 
+    button {
+      width: 100%;
+      border: 0;
+      border-radius: 16px;
+      padding: 20px 16px;
+      font-size: clamp(18px, 4vw, 25px);
+      font-weight: 800;
+      cursor: pointer;
+      -webkit-tap-highlight-color: transparent;
+    }
 
-    /* ==============================
-       START BUTTON
-       ============================== */
+    button:active {
+      transform: scale(.985);
+    }
 
     #startButton {
-
-      display: block;
-
-      width: 100%;
-
-      padding:
-        18px 15px;
-
-      border: none;
-
-      border-radius: 14px;
-
-      background:
-        #1a73e8;
-
-      color: white;
-
-      font-size: 19px;
-
-      font-weight: bold;
-
-      cursor: pointer;
-
-      box-shadow:
-        0 4px 10px
-        rgba(0,0,0,0.12);
-
+      background: #1a73e8;
+      color: #fff;
+      box-shadow: 0 7px 18px rgba(0,0,0,.12);
     }
-
-
-    #startButton:active {
-
-      transform:
-        scale(0.98);
-
-    }
-
-
-    /* ==============================
-       CAMERA
-       ============================== */
 
     #reader {
-
       display: none;
-
       width: 100%;
-
+      margin-top: 18px;
+      padding: 8px;
       background: #000;
-
-      border-radius: 16px;
-
+      border-radius: 18px;
       overflow: hidden;
-
-      margin-top: 15px;
-
     }
 
-
-    /* ==============================
-       RESULT
-       ============================== */
-
-    .result {
-
-      display: none;
-
-      margin-top: 18px;
-
-      padding:
-        25px 18px;
-
-      border-radius: 16px;
-
-      background: white;
-
-      text-align: center;
-
-      box-shadow:
-        0 3px 12px
-        rgba(0,0,0,0.08);
-
+    #reader video {
+      width: 100% !important;
+      height: auto !important;
+      border-radius: 12px;
     }
-
-
-    .result-icon {
-
-      font-size: 55px;
-
-      line-height: 1;
-
-      margin-bottom: 12px;
-
-    }
-
-
-    .result-title {
-
-      font-size: 25px;
-
-      font-weight: bold;
-
-      margin-bottom: 12px;
-
-    }
-
-
-    .result-name {
-
-      font-size: 25px;
-
-      font-weight: bold;
-
-      margin:
-        10px 0;
-
-    }
-
-
-    .result-info {
-
-      font-size: 16px;
-
-      color: #555;
-
-      line-height: 1.6;
-
-    }
-
-
-    .result-code {
-
-      margin-top: 12px;
-
-      font-size: 17px;
-
-      font-weight: bold;
-
-    }
-
-
-    /* ==============================
-       COLORS
-       ============================== */
-
-    .success {
-
-      border-top:
-        7px solid #16803c;
-
-    }
-
-
-    .success .result-title {
-
-      color:
-        #16803c;
-
-    }
-
-
-    .warning {
-
-      border-top:
-        7px solid #d88900;
-
-    }
-
-
-    .warning .result-title {
-
-      color:
-        #b26a00;
-
-    }
-
-
-    .error {
-
-      border-top:
-        7px solid #d93025;
-
-    }
-
-
-    .error .result-title {
-
-      color:
-        #d93025;
-
-    }
-
-
-    /* ==============================
-       NEXT SCAN BUTTON
-       ============================== */
-
-    #scanAgain {
-
-      display: none;
-
-      width: 100%;
-
-      margin-top: 15px;
-
-      padding:
-        17px 15px;
-
-      border: none;
-
-      border-radius: 14px;
-
-      background:
-        #111827;
-
-      color: white;
-
-      font-size: 17px;
-
-      font-weight: bold;
-
-      cursor: pointer;
-
-    }
-
-
-    #scanAgain:active {
-
-      transform:
-        scale(0.98);
-
-    }
-
-
-    /* ==============================
-       INFO
-       ============================== */
-
-    .info {
-
-      margin-top: 18px;
-
-      padding: 16px;
-
-      background: white;
-
-      border-radius: 14px;
-
-      text-align: center;
-
-      color: #666;
-
-      font-size: 14px;
-
-      line-height: 1.5;
-
-    }
-
-
-    /* ==============================
-       LOADING
-       ============================== */
 
     .loading {
-
       display: none;
-
+      margin-top: 18px;
+      padding: 16px;
       text-align: center;
-
-      margin-top: 15px;
-
-      color: #666;
-
-      font-size: 15px;
-
+      color: #667085;
+      font-size: 16px;
     }
 
+    .result {
+      display: none;
+      margin-top: 18px;
+      padding: 28px 20px;
+      background: #fff;
+      border-radius: 18px;
+      text-align: center;
+      box-shadow: 0 5px 18px rgba(0,0,0,.08);
+    }
 
+    .result.success {
+      border-top: 8px solid #16803c;
+    }
+
+    .result.warning {
+      border-top: 8px solid #d88900;
+    }
+
+    .result.error {
+      border-top: 8px solid #d93025;
+    }
+
+    .result-icon {
+      font-size: 64px;
+      line-height: 1;
+      margin-bottom: 16px;
+    }
+
+    .result-title {
+      font-size: clamp(26px, 6vw, 40px);
+      font-weight: 800;
+      margin-bottom: 14px;
+    }
+
+    .success .result-title { color: #16803c; }
+    .warning .result-title { color: #b26a00; }
+    .error .result-title { color: #d93025; }
+
+    .result-name {
+      font-size: clamp(22px, 5vw, 32px);
+      font-weight: 800;
+      margin: 12px 0;
+    }
+
+    .result-info {
+      font-size: clamp(16px, 4vw, 21px);
+      line-height: 1.6;
+      color: #475467;
+    }
+
+    .result-code {
+      margin-top: 14px;
+      font-size: clamp(16px, 4vw, 20px);
+      font-weight: 800;
+    }
+
+    #scanAgain {
+      display: none;
+      margin-top: 16px;
+      background: #111827;
+      color: #fff;
+    }
+
+    .info {
+      margin-top: 18px;
+      padding: 15px;
+      background: #fff;
+      border-radius: 14px;
+      text-align: center;
+      color: #667085;
+      font-size: 14px;
+      line-height: 1.5;
+    }
+
+    .small-note {
+      font-size: 13px;
+      color: #98a2b3;
+      margin-top: 10px;
+      text-align: center;
+    }
   </style>
-
 </head>
 
-
 <body>
+  <main class="container">
 
+    <header class="header">
+      <h1>CHECK-IN EVENT</h1>
+      <p>Scan QR Code Peserta</p>
+    </header>
 
-<div class="container">
+    <button id="startButton" type="button" onclick="startScanner()">
+      📷 MULAI SCANNER
+    </button>
 
+    <div id="loading" class="loading">
+      Meminta izin kamera...
+    </div>
 
-  <!-- =========================================
-       HEADER
-       ========================================= -->
+    <div id="reader"></div>
 
-  <div class="header">
+    <section id="result" class="result" aria-live="polite">
+      <div id="resultIcon" class="result-icon"></div>
+      <div id="resultTitle" class="result-title"></div>
+      <div id="resultName" class="result-name"></div>
+      <div id="resultInfo" class="result-info"></div>
+      <div id="resultCode" class="result-code"></div>
+    </section>
 
-    <h1>
-      CHECK-IN EVENT
-    </h1>
+    <button id="scanAgain" type="button" onclick="scanAgain()">
+      📷 SCAN PESERTA BERIKUTNYA
+    </button>
 
-    <p>
-      Scan QR Code Peserta
-    </p>
+    <div id="info" class="info">
+      Tekan tombol <b>MULAI SCANNER</b> untuk mengaktifkan kamera.
+      <div class="small-note">
+        Scanner berjalan di GitHub Pages. Google Apps Script hanya digunakan sebagai server/database check-in.
+      </div>
+    </div>
 
-  </div>
+  </main>
 
+  <script>
+    // =========================================================
+    // KONFIGURASI
+    // =========================================================
 
-  <!-- =========================================
-       START BUTTON
-       ========================================= -->
+    const GOOGLE_SCRIPT_URL =
+      'https://script.google.com/macros/s/AKfycbwpZRPTpi74hlQP48SqOEs1mScsH_C_5njMGSGTXJttEcOYxPN_8FkHnC700sWkC-eM/exec';
 
-  <button
-    id="startButton"
-    onclick="startScanner()"
-  >
 
-    📷 MULAI SCANNER
+    // =========================================================
+    // GLOBAL
+    // =========================================================
 
-  </button>
+    let scanner = null;
+    let scanning = false;
+    let processing = false;
 
 
-  <!-- =========================================
-       LOADING
-       ========================================= -->
+    // =========================================================
+    // UTILITAS
+    // =========================================================
 
-  <div
-    id="loading"
-    class="loading"
-  >
-
-    Membuka kamera...
-
-  </div>
-
-
-  <!-- =========================================
-       QR CAMERA
-       ========================================= -->
-
-  <div id="reader"></div>
-
-
-  <!-- =========================================
-       RESULT
-       ========================================= -->
-
-  <div
-    id="result"
-    class="result"
-  >
-
-    <div
-      id="resultIcon"
-      class="result-icon"
-    ></div>
-
-
-    <div
-      id="resultTitle"
-      class="result-title"
-    ></div>
-
-
-    <div
-      id="resultName"
-      class="result-name"
-    ></div>
-
-
-    <div
-      id="resultInfo"
-      class="result-info"
-    ></div>
-
-
-    <div
-      id="resultCode"
-      class="result-code"
-    ></div>
-
-  </div>
-
-
-  <!-- =========================================
-       NEXT SCAN
-       ========================================= -->
-
-  <button
-    id="scanAgain"
-    onclick="scanAgain()"
-  >
-
-    📷 SCAN PESERTA BERIKUTNYA
-
-  </button>
-
-
-  <!-- =========================================
-       INFO
-       ========================================= -->
-
-  <div
-    id="info"
-    class="info"
-  >
-
-    Tekan tombol
-    <b>MULAI SCANNER</b>
-    untuk mengaktifkan kamera.
-
-  </div>
-
-
-</div>
-
-
-<script>
-
-// =====================================================
-// KONFIGURASI
-// =====================================================
-
-// URL Web App Google Apps Script yang menjadi database check-in.
-const GOOGLE_SCRIPT_URL =
-  'https://script.google.com/macros/s/AKfycbwpZRPTpi74hlQP48SqOEs1mScsH_C_5njMGSGTXJttEcOYxPN_8FkHnC700sWkC-eM/exec';
-
-
-// =====================================================
-// GLOBAL
-// =====================================================
-
-let scanner = null;
-let scanning = false;
-let processing = false;
-
-
-// =====================================================
-// BUNYI BEEP
-// =====================================================
-
-function beep() {
-
-  try {
-    const AudioContext =
-      window.AudioContext ||
-      window.webkitAudioContext;
-
-    if (!AudioContext) return;
-
-    const audioContext = new AudioContext();
-    const oscillator = audioContext.createOscillator();
-    const gainNode = audioContext.createGain();
-
-    oscillator.type = 'sine';
-    oscillator.frequency.value = 1000;
-    gainNode.gain.value = 0.15;
-
-    oscillator.connect(gainNode);
-    gainNode.connect(audioContext.destination);
-
-    oscillator.start();
-    oscillator.stop(audioContext.currentTime + 0.15);
-
-  } catch (error) {
-    console.log('Beep tidak tersedia:', error);
-  }
-}
-
-
-// =====================================================
-// MINTA IZIN KAMERA
-// =====================================================
-
-async function requestCameraPermission() {
-
-  if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-    throw new Error(
-      'Browser tidak mendukung akses kamera. Gunakan Chrome atau browser modern melalui HTTPS.'
-    );
-  }
-
-  // Memanggil getUserMedia secara langsung agar browser menampilkan
-  // popup izin kamera pada kunjungan pertama.
-  const stream = await navigator.mediaDevices.getUserMedia({
-    video: {
-      facingMode: { ideal: 'environment' }
-    },
-    audio: false
-  });
-
-  // Stream ini hanya untuk meminta izin. Html5Qrcode akan membuka
-  // kamera kembali saat proses scanning dimulai.
-  stream.getTracks().forEach(function(track) {
-    track.stop();
-  });
-
-  // Beri waktu kamera menutup sebelum dibuka oleh Html5Qrcode.
-  await new Promise(function(resolve) {
-    setTimeout(resolve, 300);
-  });
-}
-
-
-// =====================================================
-// CARI KAMERA BELAKANG
-// =====================================================
-
-async function getBestCameraId() {
-
-  const cameras = await Html5Qrcode.getCameras();
-
-  if (!cameras || cameras.length === 0) {
-    throw new Error('Kamera tidak ditemukan pada perangkat ini.');
-  }
-
-  // Prioritaskan kamera belakang.
-  const keywords = [
-    'back',
-    'rear',
-    'environment',
-    'belakang'
-  ];
-
-  for (let i = 0; i < cameras.length; i++) {
-    const label = String(cameras[i].label || '').toLowerCase();
-
-    for (let j = 0; j < keywords.length; j++) {
-      if (label.includes(keywords[j])) {
-        return cameras[i].id;
-      }
+    function $(id) {
+      return document.getElementById(id);
     }
-  }
 
-  // Jika nama kamera tidak jelas, gunakan kamera pertama.
-  return cameras[0].id;
-}
+    function escapeHtml(value) {
+      return String(value == null ? "" : value)
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#039;");
+    }
 
 
-// =====================================================
-// MULAI SCANNER
-// =====================================================
+    // =========================================================
+    // BEEP
+    // =========================================================
 
-async function startScanner() {
-
-  if (scanning) return;
-
-  processing = false;
-
-  document.getElementById('result').style.display = 'none';
-  document.getElementById('scanAgain').style.display = 'none';
-  document.getElementById('startButton').style.display = 'none';
-  document.getElementById('info').style.display = 'none';
-  document.getElementById('loading').style.display = 'block';
-  document.getElementById('loading').innerHTML = 'Meminta izin kamera...';
-  document.getElementById('reader').style.display = 'block';
-
-  try {
-
-    // =================================================
-    // 1. PAKSA BROWSER MEMINTA IZIN KAMERA
-    // =================================================
-
-    await requestCameraPermission();
-
-    document.getElementById('loading').innerHTML =
-      'Membuka kamera...';
-
-    // =================================================
-    // 2. BUAT SCANNER
-    // =================================================
-
-    if (scanner) {
+    function beep() {
       try {
-        await scanner.clear();
-      } catch (e) {
-        console.log('Scanner lama tidak perlu dibersihkan:', e);
+        const AudioContext =
+          window.AudioContext || window.webkitAudioContext;
+
+        if (!AudioContext) return;
+
+        const audioContext = new AudioContext();
+        const oscillator = audioContext.createOscillator();
+        const gainNode = audioContext.createGain();
+
+        oscillator.type = "sine";
+        oscillator.frequency.value = 1000;
+        gainNode.gain.value = 0.15;
+
+        oscillator.connect(gainNode);
+        gainNode.connect(audioContext.destination);
+
+        oscillator.start();
+        oscillator.stop(audioContext.currentTime + 0.15);
+      } catch (error) {
+        console.log("Beep tidak tersedia:", error);
       }
     }
 
-    scanner = new Html5Qrcode('reader');
 
-    // =================================================
-    // 3. PILIH KAMERA BELAKANG
-    // =================================================
+    // =========================================================
+    // PERMINTAAN IZIN KAMERA
+    // =========================================================
 
-    const cameraId = await getBestCameraId();
-
-    // =================================================
-    // 4. START SCANNER
-    // =================================================
-
-    await scanner.start(
-      cameraId,
-      {
-        fps: 10,
-        qrbox: {
-          width: 250,
-          height: 250
-        },
-        aspectRatio: 1.0
-      },
-      onScanSuccess,
-      function(errorMessage) {
-        // Error scan biasa tidak perlu ditampilkan.
+    async function requestCameraPermission() {
+      if (!window.isSecureContext) {
+        throw new Error(
+          "Halaman scanner harus dibuka melalui HTTPS. Gunakan GitHub Pages."
+        );
       }
-    );
 
-    scanning = true;
+      if (
+        !navigator.mediaDevices ||
+        !navigator.mediaDevices.getUserMedia
+      ) {
+        throw new Error(
+          "Browser tidak mendukung akses kamera."
+        );
+      }
 
-    document.getElementById('loading').style.display = 'none';
+      // Penting:
+      // getUserMedia dipanggil langsung setelah tombol ditekan.
+      // Ini membuat permintaan kamera berasal dari interaksi pengguna.
+      const stream =
+        await navigator.mediaDevices.getUserMedia({
+          video: {
+            facingMode: { ideal: "environment" }
+          },
+          audio: false
+        });
 
-  } catch (error) {
+      // Stream hanya dipakai untuk memastikan izin kamera.
+      // Html5Qrcode akan membuka kamera untuk proses scanning.
+      stream.getTracks().forEach(function(track) {
+        track.stop();
+      });
 
-    console.error('Gagal membuka kamera:', error);
-
-    scanning = false;
-
-    document.getElementById('loading').style.display = 'none';
-    document.getElementById('reader').style.display = 'none';
-    document.getElementById('startButton').style.display = 'block';
-
-    let message = String(error && error.message ? error.message : error);
-
-    if (
-      message.toLowerCase().includes('permission') ||
-      message.toLowerCase().includes('notallowed') ||
-      message.toLowerCase().includes('denied')
-    ) {
-      message =
-        'Izin kamera ditolak oleh browser.<br><br>' +
-        'Silakan pilih <b>IZINKAN</b> ketika popup kamera muncul. ' +
-        'Jika sebelumnya memilih <b>Jangan izinkan</b>, izin kamera perlu diaktifkan kembali pada pengaturan situs browser.';
+      await new Promise(function(resolve) {
+        setTimeout(resolve, 250);
+      });
     }
 
-    showError(
-      'KAMERA TIDAK DAPAT DIBUKA',
-      message
-    );
-  }
-}
 
+    // =========================================================
+    // PILIH KAMERA
+    // =========================================================
 
-// =====================================================
-// QR BERHASIL DIBACA
-// =====================================================
+    async function getBestCameraId() {
+      const cameras = await Html5Qrcode.getCameras();
 
-async function onScanSuccess(decodedText) {
+      if (!cameras || cameras.length === 0) {
+        throw new Error(
+          "Kamera tidak ditemukan pada perangkat ini."
+        );
+      }
 
-  if (!scanning || processing) return;
+      const keywords = [
+        "back",
+        "rear",
+        "environment",
+        "belakang"
+      ];
 
-  processing = true;
-  beep();
+      for (let i = 0; i < cameras.length; i++) {
+        const label =
+          String(cameras[i].label || "").toLowerCase();
 
-  // =================================================
-  // STOP CAMERA
-  // =================================================
+        for (let j = 0; j < keywords.length; j++) {
+          if (label.includes(keywords[j])) {
+            return cameras[i].id;
+          }
+        }
+      }
 
-  try {
-    if (scanner) {
-      await scanner.stop();
+      return cameras[0].id;
     }
-  } catch (error) {
-    console.log('Kamera sudah berhenti:', error);
-  }
-
-  scanning = false;
-
-  document.getElementById('reader').style.display = 'none';
-  document.getElementById('loading').style.display = 'block';
-  document.getElementById('loading').innerHTML = 'Memeriksa peserta...';
-
-  // =================================================
-  // KIRIM QR KE GOOGLE APPS SCRIPT MENGGUNAKAN JSONP
-  // =================================================
-
-  checkQRCodeFromServer(decodedText)
-    .then(function(data) {
-
-      document.getElementById('loading').style.display = 'none';
-      showResult(data);
-
-    })
-    .catch(function(error) {
-
-      document.getElementById('loading').style.display = 'none';
-
-      showError(
-        'GAGAL TERHUBUNG',
-        'Tidak dapat menghubungi server. Periksa koneksi internet.<br><br>' +
-        '<small>' + escapeHtml(String(error)) + '</small>'
-      );
-
-    });
-}
 
 
-// =====================================================
-// HUBUNGI GOOGLE APPS SCRIPT
-// JSONP, BUKAN google.script.run
-// =====================================================
+    // =========================================================
+    // MULAI SCANNER
+    // =========================================================
 
-function checkQRCodeFromServer(qrText) {
+    async function startScanner() {
+      if (scanning) return;
 
-  return new Promise(function(resolve, reject) {
+      processing = false;
 
-    const callbackName =
-      'qrCallback_' +
-      Date.now() + '_' +
-      Math.floor(Math.random() * 100000);
-
-    const script = document.createElement('script');
-
-    let finished = false;
-
-    const timeout = setTimeout(function() {
-
-      if (finished) return;
-
-      finished = true;
-      cleanup();
-
-      reject(
-        new Error(
-          'Server tidak memberikan respons dalam waktu yang ditentukan.'
-        )
-      );
-
-    }, 15000);
-
-
-    function cleanup() {
-      clearTimeout(timeout);
+      $("result").style.display = "none";
+      $("scanAgain").style.display = "none";
+      $("startButton").style.display = "none";
+      $("info").style.display = "none";
+      $("reader").style.display = "block";
+      $("loading").style.display = "block";
+      $("loading").innerHTML = "Meminta izin kamera...";
 
       try {
-        delete window[callbackName];
-      } catch (e) {
-        window[callbackName] = undefined;
-      }
+        // -----------------------------------------------------
+        // 1. MINTA IZIN KAMERA DARI INTERAKSI TOMBOL
+        // -----------------------------------------------------
 
-      if (script.parentNode) {
-        script.parentNode.removeChild(script);
+        await requestCameraPermission();
+
+        $("loading").innerHTML = "Membuka kamera...";
+
+        // -----------------------------------------------------
+        // 2. BERSIHKAN SCANNER LAMA
+        // -----------------------------------------------------
+
+        if (scanner) {
+          try {
+            await scanner.clear();
+          } catch (error) {
+            console.log("Scanner lama sudah tidak aktif.");
+          }
+
+          scanner = null;
+        }
+
+        // -----------------------------------------------------
+        // 3. BUAT INSTANCE BARU
+        // -----------------------------------------------------
+
+        scanner = new Html5Qrcode("reader");
+
+        // -----------------------------------------------------
+        // 4. PILIH KAMERA BELAKANG
+        // -----------------------------------------------------
+
+        const cameraId = await getBestCameraId();
+
+        // -----------------------------------------------------
+        // 5. START
+        // -----------------------------------------------------
+
+        await scanner.start(
+          cameraId,
+          {
+            fps: 10,
+            qrbox: function(viewfinderWidth, viewfinderHeight) {
+              const size = Math.floor(
+                Math.min(viewfinderWidth, viewfinderHeight) * 0.65
+              );
+
+              const safeSize = Math.max(
+                180,
+                Math.min(size, 320)
+              );
+
+              return {
+                width: safeSize,
+                height: safeSize
+              };
+            },
+            aspectRatio: 1.0
+          },
+          onScanSuccess,
+          function(errorMessage) {
+            // Error pembacaan frame biasa tidak ditampilkan.
+          }
+        );
+
+        scanning = true;
+        $("loading").style.display = "none";
+
+      } catch (error) {
+        console.error("Gagal membuka kamera:", error);
+
+        scanning = false;
+        $("loading").style.display = "none";
+        $("reader").style.display = "none";
+        $("startButton").style.display = "block";
+        $("info").style.display = "block";
+
+        const message =
+          String(
+            error && error.message
+              ? error.message
+              : error
+          );
+
+        let userMessage = message;
+
+        if (
+          /notallowed|permission|denied/i.test(message)
+        ) {
+          userMessage =
+            "Akses kamera ditolak atau tidak tersedia.<br><br>" +
+            "Pastikan izin kamera untuk <b>GitHub Pages</b> sudah diizinkan di Chrome. " +
+            "Kemudian tekan <b>MULAI SCANNER</b> lagi.";
+        }
+
+        if (
+          /security|secure context|https/i.test(message)
+        ) {
+          userMessage =
+            "Scanner harus dibuka melalui HTTPS. " +
+            "Buka scanner dari alamat GitHub Pages, bukan dari URL Google Apps Script.";
+        }
+
+        showError(
+          "KAMERA TIDAK DAPAT DIBUKA",
+          userMessage +
+          "<br><br><small>" +
+          escapeHtml(message) +
+          "</small>"
+        );
       }
     }
 
 
-    window[callbackName] = function(data) {
+    // =========================================================
+    // QR BERHASIL DIBACA
+    // =========================================================
 
-      if (finished) return;
+    async function onScanSuccess(decodedText) {
+      if (!scanning || processing) return;
 
-      finished = true;
-      cleanup();
-      resolve(data);
-    };
+      processing = true;
+      beep();
 
+      try {
+        if (scanner) {
+          await scanner.stop();
+        }
+      } catch (error) {
+        console.log("Kamera sudah berhenti:", error);
+      }
 
-    script.onerror = function() {
+      scanning = false;
 
-      if (finished) return;
+      $("reader").style.display = "none";
+      $("loading").style.display = "block";
+      $("loading").innerHTML = "Memeriksa peserta...";
 
-      finished = true;
-      cleanup();
+      checkQRCodeFromServer(decodedText)
+        .then(function(data) {
+          $("loading").style.display = "none";
+          showResult(data);
+        })
+        .catch(function(error) {
+          $("loading").style.display = "none";
 
-      reject(
-        new Error(
-          'Gagal mengakses Google Apps Script.'
-        )
-      );
-    };
-
-
-    script.src =
-      GOOGLE_SCRIPT_URL +
-      '?action=check' +
-      '&qr=' +
-      encodeURIComponent(qrText) +
-      '&callback=' +
-      encodeURIComponent(callbackName) +
-      '&_=' +
-      Date.now();
-
-
-    document.body.appendChild(script);
-  });
-}
-
-
-// =====================================================
-// TAMPILKAN HASIL
-// =====================================================
-
-function showResult(data) {
-
-  const result = document.getElementById('result');
-  const icon = document.getElementById('resultIcon');
-  const title = document.getElementById('resultTitle');
-  const name = document.getElementById('resultName');
-  const info = document.getElementById('resultInfo');
-  const code = document.getElementById('resultCode');
-
-  result.style.display = 'block';
-
-  // =================================================
-  // HADIR
-  // =================================================
-
-  if (data.status === 'HADIR') {
-
-    result.className = 'result success';
-    icon.innerHTML = '✅';
-    title.innerHTML = 'CHECK-IN BERHASIL';
-    name.innerHTML = escapeHtml(data.nama || '');
-    info.innerHTML =
-      escapeHtml(data.jabatan || '') +
-      '<br>' +
-      escapeHtml(data.waktu || '');
-    code.innerHTML =
-      'Kode Peserta: ' +
-      escapeHtml(data.kode || '');
-
-  }
-
-  // =================================================
-  // SUDAH HADIR
-  // =================================================
-
-  else if (data.status === 'SUDAH_HADIR') {
-
-    result.className = 'result warning';
-    icon.innerHTML = '⚠️';
-    title.innerHTML = 'SUDAH CHECK-IN';
-    name.innerHTML = escapeHtml(data.nama || '');
-    info.innerHTML =
-      escapeHtml(data.jabatan || '') +
-      '<br>Check-in: ' +
-      escapeHtml(data.waktu || '');
-    code.innerHTML =
-      'Kode Peserta: ' +
-      escapeHtml(data.kode || '');
-
-  }
-
-  // =================================================
-  // ERROR
-  // =================================================
-
-  else {
-
-    showError(
-      'QR TIDAK VALID',
-      escapeHtml(data.pesan || 'QR Code tidak valid.')
-    );
-
-    return;
-  }
-
-  document.getElementById('scanAgain').style.display = 'block';
-}
+          showError(
+            "GAGAL TERHUBUNG",
+            "Tidak dapat menghubungi server. Periksa koneksi internet.<br><br>" +
+            "<small>" +
+            escapeHtml(String(error)) +
+            "</small>"
+          );
+        });
+    }
 
 
-// =====================================================
-// ESCAPE HTML
-// =====================================================
+    // =========================================================
+    // HUBUNGI GOOGLE APPS SCRIPT
+    // JSONP
+    // =========================================================
 
-function escapeHtml(value) {
+    function checkQRCodeFromServer(qrText) {
+      return new Promise(function(resolve, reject) {
 
-  return String(value == null ? '' : value)
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#039;');
-}
+        const callbackName =
+          "qrCallback_" +
+          Date.now() +
+          "_" +
+          Math.floor(Math.random() * 100000);
 
+        const script =
+          document.createElement("script");
 
-// =====================================================
-// ERROR
-// =====================================================
+        let finished = false;
 
-function showError(titleText, messageText) {
+        const timeout =
+          setTimeout(function() {
+            if (finished) return;
 
-  const result = document.getElementById('result');
-  const icon = document.getElementById('resultIcon');
-  const title = document.getElementById('resultTitle');
-  const name = document.getElementById('resultName');
-  const info = document.getElementById('resultInfo');
-  const code = document.getElementById('resultCode');
+            finished = true;
+            cleanup();
 
-  result.className = 'result error';
-  result.style.display = 'block';
-
-  icon.innerHTML = '❌';
-  title.innerHTML = titleText;
-  name.innerHTML = '';
-  info.innerHTML = messageText;
-  code.innerHTML = '';
-
-  document.getElementById('scanAgain').style.display = 'block';
-}
+            reject(
+              new Error(
+                "Server tidak memberikan respons dalam waktu 15 detik."
+              )
+            );
+          }, 15000);
 
 
-// =====================================================
-// SCAN PESERTA BERIKUTNYA
-// =====================================================
+        function cleanup() {
+          clearTimeout(timeout);
 
-function scanAgain() {
+          try {
+            delete window[callbackName];
+          } catch (error) {
+            window[callbackName] = undefined;
+          }
 
-  document.getElementById('result').style.display = 'none';
-  document.getElementById('scanAgain').style.display = 'none';
+          if (script.parentNode) {
+            script.parentNode.removeChild(script);
+          }
+        }
 
-  startScanner();
-}
+
+        window[callbackName] =
+          function(data) {
+            if (finished) return;
+
+            finished = true;
+            cleanup();
+            resolve(data);
+          };
 
 
-</script>
+        script.onerror =
+          function() {
+            if (finished) return;
 
+            finished = true;
+            cleanup();
+
+            reject(
+              new Error(
+                "Gagal mengakses Google Apps Script."
+              )
+            );
+          };
+
+
+        script.src =
+          GOOGLE_SCRIPT_URL +
+          "?action=check" +
+          "&qr=" +
+          encodeURIComponent(qrText) +
+          "&callback=" +
+          encodeURIComponent(callbackName) +
+          "&_=" +
+          Date.now();
+
+        document.body.appendChild(script);
+      });
+    }
+
+
+    // =========================================================
+    // TAMPILKAN HASIL
+    // =========================================================
+
+    function showResult(data) {
+      const result = $("result");
+
+      result.style.display = "block";
+
+      if (data && data.status === "HADIR") {
+
+        result.className = "result success";
+
+        $("resultIcon").innerHTML = "✅";
+        $("resultTitle").innerHTML = "CHECK-IN BERHASIL";
+        $("resultName").innerHTML =
+          escapeHtml(data.nama || "");
+
+        $("resultInfo").innerHTML =
+          escapeHtml(data.jabatan || "") +
+          "<br>" +
+          escapeHtml(data.waktu || "");
+
+        $("resultCode").innerHTML =
+          "Kode Peserta: " +
+          escapeHtml(data.kode || "");
+      }
+
+      else if (
+        data &&
+        data.status === "SUDAH_HADIR"
+      ) {
+
+        result.className = "result warning";
+
+        $("resultIcon").innerHTML = "⚠️";
+        $("resultTitle").innerHTML = "SUDAH CHECK-IN";
+
+        $("resultName").innerHTML =
+          escapeHtml(data.nama || "");
+
+        $("resultInfo").innerHTML =
+          escapeHtml(data.jabatan || "") +
+          "<br>Check-in: " +
+          escapeHtml(data.waktu || "");
+
+        $("resultCode").innerHTML =
+          "Kode Peserta: " +
+          escapeHtml(data.kode || "");
+      }
+
+      else {
+
+        showError(
+          "QR TIDAK VALID",
+          escapeHtml(
+            data && data.pesan
+              ? data.pesan
+              : "QR Code tidak valid."
+          )
+        );
+
+        return;
+      }
+
+      $("scanAgain").style.display = "block";
+      $("info").style.display = "none";
+    }
+
+
+    // =========================================================
+    // ERROR
+    // =========================================================
+
+    function showError(titleText, messageText) {
+      const result = $("result");
+
+      result.className = "result error";
+      result.style.display = "block";
+
+      $("resultIcon").innerHTML = "❌";
+      $("resultTitle").innerHTML = titleText;
+      $("resultName").innerHTML = "";
+      $("resultInfo").innerHTML = messageText;
+      $("resultCode").innerHTML = "";
+
+      $("scanAgain").style.display = "block";
+    }
+
+
+    // =========================================================
+    // SCAN BERIKUTNYA
+    // =========================================================
+
+    function scanAgain() {
+      $("result").style.display = "none";
+      $("scanAgain").style.display = "none";
+      $("info").style.display = "none";
+
+      startScanner();
+    }
+  </script>
 </body>
-
 </html>
