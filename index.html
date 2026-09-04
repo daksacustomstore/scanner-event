@@ -418,24 +418,20 @@
     }
 
     function checkApi() {
-      fetch(GOOGLE_SCRIPT_URL + "?_=" + Date.now(), {
-        method: "GET",
-        cache: "no-store"
-      })
-      .then(response => {
-        if (!response.ok) {
-          throw new Error("HTTP " + response.status);
-        }
-        return response.text();
-      })
-      .then(() => {
-        updateApiStatus("Server check-in siap.", true);
-      })
-      .catch(() => {
-        // Jangan menghalangi kamera. API bisa saja lambat, tetapi
-        // JSONP saat scan tetap menjadi mekanisme utama.
-        updateApiStatus("Server akan dicek saat QR dipindai.", false);
-      });
+      // Jangan gunakan fetch() ke Apps Script dari GitHub Pages.
+      // ContentService tidak memberikan CORS untuk pola ini.
+      // Gunakan JSONP, sama seperti saat proses check-in.
+      checkQRCodeWithJsonp("__PING__", true)
+        .then(data => {
+          if (data && data.status === "OK") {
+            updateApiStatus("Server check-in siap.", true);
+          } else {
+            updateApiStatus("Server merespons.", true);
+          }
+        })
+        .catch(() => {
+          updateApiStatus("Server akan dicek saat QR dipindai.", false);
+        });
     }
 
     // ============================================================
@@ -713,8 +709,11 @@
     // JSONP KE GOOGLE APPS SCRIPT
     // ============================================================
 
-    function checkQRCodeWithJsonp(qrText) {
+    function checkQRCodeWithJsonp(qrText, pingOnly) {
       return new Promise((resolve, reject) => {
+        // Apps Script ContentService secara resmi mendukung JSONP
+        // melalui parameter prefix. Kita gunakan callback global yang
+        // hanya hidup selama satu request.
         const callbackName =
           "qrCallback_" +
           Date.now() +
@@ -722,12 +721,11 @@
           (++jsonpCounter);
 
         const script = document.createElement("script");
-
+        let timeoutId = null;
         let finished = false;
 
         const cleanup = () => {
           if (finished) return;
-
           finished = true;
 
           try {
@@ -740,9 +738,14 @@
             script.parentNode.removeChild(script);
           }
 
-          clearTimeout(timeoutId);
+          if (timeoutId) {
+            clearTimeout(timeoutId);
+          }
         };
 
+        // WAJIB dipasang di window karena JavaScript dari
+        // script.googleusercontent.com akan memanggilnya sebagai
+        // fungsi global.
         window[callbackName] = function(data) {
           cleanup();
           resolve(data);
@@ -750,39 +753,37 @@
 
         script.onerror = function() {
           cleanup();
-
           reject(
             new Error(
               "Google Apps Script tidak dapat diakses. " +
-              "Periksa koneksi internet dan deployment Web App."
+              "Pastikan deployment Web App masih aktif dan aksesnya \"Siapa saja\"."
             )
           );
         };
 
-        const timeoutId = setTimeout(() => {
+        timeoutId = setTimeout(() => {
           cleanup();
-
           reject(
             new Error(
-              "Server terlalu lama merespons. " +
-              "Periksa deployment Google Apps Script."
+              "Server tidak merespons dalam " +
+              (JSONP_TIMEOUT_MS / 1000) +
+              " detik. Pastikan deployment Apps Script sudah diperbarui."
             )
           );
         }, JSONP_TIMEOUT_MS);
 
-        const url =
-          GOOGLE_SCRIPT_URL +
-          "?action=check" +
-          "&qr=" +
-          encodeURIComponent(String(qrText)) +
-          "&callback=" +
-          encodeURIComponent(callbackName) +
-          "&_=" +
-          Date.now();
+        const params = new URLSearchParams();
+        params.set("action", "check");
+        params.set("qr", String(qrText ?? ""));
+        // Gunakan nama parameter resmi JSONP dari dokumentasi Apps Script.
+        params.set("prefix", callbackName);
+        params.set("_", String(Date.now()));
 
-        script.src = url;
+        script.src = GOOGLE_SCRIPT_URL + "?" + params.toString();
+        script.async = true;
+        script.setAttribute("data-checkin-jsonp", "1");
 
-        document.body.appendChild(script);
+        document.head.appendChild(script);
       });
     }
 
