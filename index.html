@@ -4,8 +4,8 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <meta name="theme-color" content="#111827">
-  <meta name="description" content="Scanner Check-in Event">
-  <title>Check-in Event</title>
+  <meta name="description" content="Scanner Check-in Event v3">
+  <title>Check-in Event v3</title>
 
   <!--
     ============================================================
@@ -787,7 +787,8 @@
           if (finished) return;
           finished = true;
           cleanup();
-          updateApiStatus('Server belum terhubung. Akan dicoba lagi saat scan.', false);
+          console.log('[CHECK-IN V3] index.html aktif - transport POST + hidden iframe');
+    updateApiStatus('Server belum terhubung. Akan dicoba lagi saat scan.', false);
           reject(new Error(message));
         }
 
@@ -973,6 +974,7 @@
     // START
     // ============================================================
 
+    console.log('[CHECK-IN V3] index.html aktif - transport POST + hidden iframe');
     updateApiStatus('Server belum terhubung. Akan dicoba lagi saat scan.', false);
   </script>
 </body>
