@@ -324,7 +324,7 @@
     const GOOGLE_SCRIPT_URL =
       "https://script.google.com/macros/s/AKfycbwpZRPTpi74hlQP48SqOEs1mScsH_C_5njMGSGTXJttEcOYxPN_8FkHnC700sWkC-eM/exec";
 
-    const JSONP_TIMEOUT_MS = 15000;
+    const JSONP_TIMEOUT_MS = 12000;
 
     // ============================================================
     // GLOBAL
@@ -708,12 +708,15 @@
     // ============================================================
     function requestAppsScript(qrText) {
       return new Promise((resolve, reject) => {
+
         const callbackName =
           "checkinCallback_" +
-          Date.now() + "_" +
-          (++jsonpCounter);
+          Date.now() +
+          "_" +
+          Math.floor(Math.random() * 1000000);
 
         const script = document.createElement("script");
+
         let finished = false;
         let timeoutId = null;
 
@@ -734,45 +737,57 @@
           }
         }
 
-        function finishSuccess(data) {
+        function succeed(data) {
           if (finished) return;
+
           finished = true;
           cleanup();
           resolve(data);
         }
 
-        function finishError(message) {
+        function fail(message) {
           if (finished) return;
+
           finished = true;
           cleanup();
           reject(new Error(message));
         }
 
+        // Apps Script JSONP memanggil fungsi ini secara global.
         window[callbackName] = function(data) {
-          finishSuccess(data);
+          succeed(data);
         };
 
+        script.async = true;
+
         script.onerror = function() {
-          finishError(
-            "Google Apps Script tidak dapat diakses. Pastikan deployment Web App aktif dan aksesnya \"Siapa saja\"."
+          fail(
+            "Request ke Google Apps Script gagal dimuat. " +
+            "Pastikan URL Web App benar dan deployment terbaru sudah aktif."
           );
         };
 
         timeoutId = setTimeout(function() {
-          finishError(
-            "Google Apps Script tidak memberikan respons dalam 20 detik. Periksa deployment Web App dan pastikan URL API benar."
+          fail(
+            "Google Apps Script tidak mengirim callback dalam " +
+            (JSONP_TIMEOUT_MS / 1000) +
+            " detik. Endpoint dapat dibuka, tetapi respons check-in " +
+            "tidak kembali ke halaman scanner."
           );
-        }, 20000);
+        }, JSONP_TIMEOUT_MS);
 
         const params = new URLSearchParams();
+
         params.set("action", "check");
         params.set("qr", String(qrText ?? ""));
         params.set("prefix", callbackName);
         params.set("_", String(Date.now()));
 
-        // <script src> adalah mekanisme JSONP lintas-origin.
-        script.src = GOOGLE_SCRIPT_URL + "?" + params.toString();
-        script.async = true;
+        script.src =
+          GOOGLE_SCRIPT_URL +
+          "?" +
+          params.toString();
+
         document.head.appendChild(script);
       });
     }
