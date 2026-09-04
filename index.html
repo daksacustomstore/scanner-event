@@ -1,3 +1,238 @@
+saya coba priview kamu masih seperti itu ? apa karena itu hanya proview saja ?
+
+
+ada sedikit kemajuan, kamera sudah terbuka tapi selesai scan gagal terhubung
+
+Ya, ini kemajuan besar. Kamera sudah berhasil dibuka, jadi masalah izin kamera dan GitHub Pages sudah selesai.
+
+Sekarang masalahnya tepat berada di tahap:
+
+QR terbaca → GitHub Pages mengirim kode ke Apps Script → respons Apps Script tidak kembali ke halaman scanner.
+
+Dari kode yang saya cek, penyebab paling mungkin adalah mekanisme JSONP kita. Google sendiri memang mendokumentasikan JSONP untuk Content Service, tetapi respons Content Service juga mengalami redirect ke script.googleusercontent.com, sehingga mekanisme pemanggilannya harus dibuat sangat hati-hati.
+
+Saya juga menemukan satu hal yang perlu kita benahi: saat ini index.html masih melakukan pengecekan API dengan fetch(), padahal Apps Script tidak menyediakan CORS response untuk pola tersebut. JSONP memang digunakan untuk menghindari masalah cross-origin seperti ini.
+Jadi sekarang jangan ubah kamera lagi
+
+Kamera sudah BERHASIL.
+
+Yang akan kita perbaiki hanya jalur:
+
+QR
+ ↓
+kode peserta
+ ↓
+Apps Script
+ ↓
+Google Sheets kolom P/Q/R
+ ↓
+hasil kembali ke scanner
+
+Dan saya ingin kita jangan menambal kode sedikit-sedikit lagi, karena itu yang membuat kita muter di tempat.
+
+Saya akan revisi dua file secara utuh:
+
+    index.html
+    Scanner GitHub Pages, kamera, pembacaan QR, komunikasi API.
+
+    Code.gs
+    Web App Apps Script, validasi kode peserta, penulisan:
+
+        P = HADIR
+
+        Q = waktu check-in
+
+        R = Check-in berhasil
+
+        mengembalikan hasil ke scanner.
+
+Satu hal yang tidak perlu diubah adalah deployment Anda. Deployment yang tadi kita tes sudah menjawab:
+
+status: "OK"
+pesan: "API Check-in Event aktif."
+
+Jadi backend-nya hidup.
+
+Target tes berikutnya sangat sederhana: setelah QR terbaca, bukan lagi GAGAL TERHUBUNG, tetapi harus muncul CHECK-IN BERHASIL + nama peserta, dan baris peserta di Sheets berubah dari:
+
+BELUM HADIR
+
+menjadi:
+
+HADIR.
+
+Saya akan gunakan file yang sudah kita punya sebagai dasar, bukan membuat scanner baru dari nol.
+
+ya boleh seperti itu dan kasih saya full file yang sudah diperbaiki, full file jangan direct attau setengah saja, pastikan masalahnya selesai
+
+Ya. Kali ini saya berikan dua file UTUH, bukan potongan.
+
+Saya sudah mengambil file Anda yang lengkap, mempertahankan fungsi E-Ticket yang sudah ada, lalu memperbaiki bagian komunikasi GitHub Pages → Google Apps Script.
+
+Perubahan utama:
+
+    Kamera tetap menggunakan GitHub Pages, jadi bagian kamera yang sekarang sudah berhasil tidak saya rusak.
+
+    Komunikasi API tidak lagi memakai fetch() lintas domain.
+
+    JSONP sekarang menggunakan parameter prefix, sesuai mekanisme JSONP resmi Apps Script.
+
+    Ditambahkan penanganan error server supaya error Apps Script tidak berubah menjadi sekadar "Gagal terhubung".
+
+    QR tetap mencari Kode Peserta dan mencocokkannya dengan kolom L.
+
+    Check-in tetap menulis:
+
+        P = HADIR
+
+        Q = waktu check-in
+
+        R = Check-in berhasil
+
+    Saya juga memperbaiki pembacaan kode QR agar lebih aman.
+
+    Kedua file sudah saya cek sintaks JavaScript-nya.
+
+File 1: index.html FULL
+
+File 2: Code.gs FULL
+
+Paket keduanya
+
+Kalau mau lebih praktis, ini satu ZIP berisi dua file utuh:
+
+Yang perlu Anda lakukan setelah mengganti file
+1. GitHub Pages
+
+Ganti index.html lama dengan:
+
+index.html FULL yang saya berikan di atas.
+
+Commit/push seperti biasa.
+2. Google Apps Script
+
+Di project Apps Script Anda:
+
+Code.gs → hapus seluruh isi lama → paste/upload Code.gs FULL yang baru.
+
+Jangan hanya mengganti bagian doGet.
+3. WAJIB deploy ulang Apps Script
+
+Ini bagian penting.
+
+Setelah Code.gs diganti:
+
+Deploy → Kelola deployment → pilih deployment Web App Anda → Edit → Versi: Versi baru → Terapkan.
+
+Pastikan:
+
+    Jalankan sebagai: Saya
+    Yang memiliki akses: Siapa saja
+
+Apps Script Web App memang menjalankan doGet untuk request GET dan deployment perlu menunjuk ke versi kode yang ingin dijalankan.
+4. Tes
+
+Buka URL GitHub Pages asli, bukan Preview:
+
+https://daksacustomstore.github.io/scanner-event/
+
+Kemudian:
+
+MULAI SCANNER → scan QR → tunggu hasil.
+
+Targetnya sekarang:
+
+QR peserta
+     ↓
+Kamera berhasil membaca
+     ↓
+Apps Script menerima kode
+     ↓
+Cari Kode Peserta di kolom L
+     ↓
+P = HADIR
+Q = waktu check-in
+R = Check-in berhasil
+     ↓
+CHECK-IN BERHASIL
+Nama peserta
+
+Yang paling penting, jangan mengubah bagian kamera lagi. Dari pengujian terakhir, kamera sudah berhasil dibuka. Masalah yang tersisa memang berada di jalur API setelah QR terbaca.
+
+Dan kali ini file yang saya berikan benar-benar berasal dari file lengkap Anda, bukan saya membuat index.html atau Code.gs versi pendek dari nol.
+
+
+Betul, dari dua screenshot terbaru saya bisa memastikan setting deployment Anda sudah benar:
+
+    Jalankan sebagai: akun Anda
+
+    Yang memiliki akses: Siapa saja
+
+    Deployment E-Ticket Scanner masih aktif.
+
+Jadi kita tidak perlu mengubah izin deployment lagi.
+
+Saya juga menemukan titik yang lebih masuk akal untuk diperbaiki. Versi sebelumnya masih mengandalkan JSONP. Sekarang saya ubah jalur komunikasi menjadi iframe + postMessage, sehingga halaman GitHub Pages tidak perlu melakukan fetch() atau mengeksekusi JSONP lintas domain. Ini juga tetap mengikuti fakta bahwa respons Content Service Apps Script dialihkan ke script.googleusercontent.com.
+File FULL terbaru
+
+1. index.html FULL
+
+2. Code.gs FULL
+
+3. Paket ZIP keduanya
+
+Saya sudah melakukan pengecekan sintaks JavaScript pada kedua file setelah revisi.
+Sekarang lakukan persis ini
+
+Di GitHub Pages:
+
+    Ganti index.html lama dengan file index.html baru.
+
+    Commit/push.
+
+    Tunggu GitHub Pages selesai update.
+
+Di Apps Script:
+
+    Buka Code.gs.
+
+    Hapus seluruh isi.
+
+    Masukkan Code.gs FULL yang baru.
+
+    Simpan.
+
+    Buka Deploy → Kelola deployment.
+
+    Pilih E-Ticket Scanner.
+
+    Klik ikon pensil/edit.
+
+    Klik Terapkan.
+
+Jangan mengubah:
+
+    Jalankan sebagai = Saya
+    Yang memiliki akses = Siapa saja
+
+Setelah itu tes dari HP
+
+Buka langsung:
+
+https://daksacustomstore.github.io/scanner-event/
+
+Lalu:
+
+MULAI SCANNER → scan QR peserta
+
+Kali ini alurnya:
+
+Kamera → QR → iframe Apps Script → postMessage → hasil → Sheets
+
+Jadi kita sudah meninggalkan bagian yang selama ini bikin kita berputar-putar.
+
+Dan jangan screenshot kamera atau izin HP lagi. Kamera sudah terbukti bekerja. Kalau setelah file ini dipasang masih gagal, screenshot yang paling berguna adalah pesan error setelah QR berhasil terbaca, karena di situlah titik yang sekarang perlu kita bedah.
+
 <!DOCTYPE html>
 <html lang="id">
 <head>
@@ -418,10 +653,7 @@
     }
 
     function checkApi() {
-      // Jangan gunakan fetch() ke Apps Script dari GitHub Pages.
-      // ContentService tidak memberikan CORS untuk pola ini.
-      // Gunakan JSONP, sama seperti saat proses check-in.
-      checkQRCodeWithJsonp("__PING__", true)
+      requestAppsScript("__PING__")
         .then(data => {
           if (data && data.status === "OK") {
             updateApiStatus("Server check-in siap.", true);
@@ -662,7 +894,7 @@
 
       try {
         const data =
-          await checkQRCodeWithJsonp(decodedText);
+          await requestAppsScript(decodedText);
 
         setLoading(false);
         showResult(data);
@@ -706,84 +938,86 @@
     }
 
     // ============================================================
-    // JSONP KE GOOGLE APPS SCRIPT
+    // KOMUNIKASI KE GOOGLE APPS SCRIPT
     // ============================================================
 
-    function checkQRCodeWithJsonp(qrText, pingOnly) {
+    // GitHub Pages dan Apps Script berada pada origin berbeda.
+    // Komunikasi dilakukan melalui iframe + postMessage sehingga
+    // tidak bergantung pada CORS atau eksekusi JSONP.
+    function requestAppsScript(qrText) {
       return new Promise((resolve, reject) => {
-        // Apps Script ContentService secara resmi mendukung JSONP
-        // melalui parameter prefix. Kita gunakan callback global yang
-        // hanya hidup selama satu request.
-        const callbackName =
-          "qrCallback_" +
-          Date.now() +
-          "_" +
-          (++jsonpCounter);
+        const requestId =
+          "checkin_" + Date.now() + "_" + (++jsonpCounter);
 
-        const script = document.createElement("script");
-        let timeoutId = null;
+        const iframe = document.createElement("iframe");
+        iframe.style.display = "none";
+        iframe.setAttribute("aria-hidden", "true");
+
         let finished = false;
+        let timeoutId = null;
 
-        const cleanup = () => {
+        function cleanup() {
           if (finished) return;
           finished = true;
 
-          try {
-            delete window[callbackName];
-          } catch (_) {
-            window[callbackName] = undefined;
-          }
-
-          if (script.parentNode) {
-            script.parentNode.removeChild(script);
-          }
+          window.removeEventListener("message", onMessage);
 
           if (timeoutId) {
             clearTimeout(timeoutId);
           }
-        };
 
-        // WAJIB dipasang di window karena JavaScript dari
-        // script.googleusercontent.com akan memanggilnya sebagai
-        // fungsi global.
-        window[callbackName] = function(data) {
-          cleanup();
-          resolve(data);
-        };
+          if (iframe.parentNode) {
+            iframe.parentNode.removeChild(iframe);
+          }
+        }
 
-        script.onerror = function() {
+        function fail(message) {
           cleanup();
-          reject(
-            new Error(
-              "Google Apps Script tidak dapat diakses. " +
-              "Pastikan deployment Web App masih aktif dan aksesnya \"Siapa saja\"."
-            )
-          );
-        };
+          reject(new Error(message));
+        }
+
+        function onMessage(event) {
+          const origin = String(event.origin || "");
+
+          // Apps Script ContentService/HtmlService berjalan di
+          // script.googleusercontent.com setelah redirect.
+          if (!origin.endsWith("googleusercontent.com")) {
+            return;
+          }
+
+          const data = event.data;
+
+          if (!data || data.type !== "CHECKIN_RESPONSE") {
+            return;
+          }
+
+          if (String(data.requestId || "") !== requestId) {
+            return;
+          }
+
+          cleanup();
+          resolve(data.data);
+        }
+
+        window.addEventListener("message", onMessage);
 
         timeoutId = setTimeout(() => {
-          cleanup();
-          reject(
-            new Error(
-              "Server tidak merespons dalam " +
-              (JSONP_TIMEOUT_MS / 1000) +
-              " detik. Pastikan deployment Apps Script sudah diperbarui."
-            )
+          fail(
+            "Google Apps Script tidak memberikan respons. " +
+            "Pastikan deployment Web App aktif, gunakan versi terbaru, " +
+            "dan aksesnya diatur ke \"Siapa saja\"."
           );
         }, JSONP_TIMEOUT_MS);
 
         const params = new URLSearchParams();
         params.set("action", "check");
         params.set("qr", String(qrText ?? ""));
-        // Gunakan nama parameter resmi JSONP dari dokumentasi Apps Script.
-        params.set("prefix", callbackName);
+        params.set("mode", "iframe");
+        params.set("requestId", requestId);
         params.set("_", String(Date.now()));
 
-        script.src = GOOGLE_SCRIPT_URL + "?" + params.toString();
-        script.async = true;
-        script.setAttribute("data-checkin-jsonp", "1");
-
-        document.head.appendChild(script);
+        iframe.src = GOOGLE_SCRIPT_URL + "?" + params.toString();
+        document.body.appendChild(iframe);
       });
     }
 
@@ -927,3 +1161,5 @@
   </script>
 </body>
 </html>
+
+
