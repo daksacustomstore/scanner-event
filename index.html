@@ -14,10 +14,10 @@
     HALAMAN INI KHUSUS UNTUK GITHUB PAGES.
 
     Kamera TIDAK dijalankan dari Google Apps Script.
-    Google Apps Script hanya dipakai sebagai API/database. Komunikasi menggunakan JSONP.
+    Google Apps Script hanya dipakai sebagai API/database.
 
     Alur:
-    GitHub Pages -> Kamera -> QR -> JSONP langsung -> Apps Script -> Sheets
+    GitHub Pages -> Kamera -> QR -> POST iframe -> Apps Script -> Sheets
     ============================================================
   -->
 
@@ -306,7 +306,7 @@
       Scanner harus dibuka dari URL <b>HTTPS GitHub Pages</b>, bukan dari preview editor.
       <br><br>
       <span id="apiStatus">
-        <span class="status-dot"></span> Memeriksa koneksi server...
+        <span class="status-dot"></span> Menghubungkan ke server...
       </span>
     </div>
 
@@ -325,7 +325,6 @@
       "https://script.google.com/macros/s/AKfycbwpZRPTpi74hlQP48SqOEs1mScsH_C_5njMGSGTXJttEcOYxPN_8FkHnC700sWkC-eM/exec";
 
     const API_TIMEOUT_MS = 20000;
-    const GITHUB_ORIGIN = "https://daksacustomstore.github.io";
 
     // ============================================================
     // GLOBAL
@@ -335,7 +334,8 @@
     let scanning = false;
     let processing = false;
     let cameraStream = null;
-    let apiRequestCounter = 0;
+    let requestCounter = 0;
+    let pendingRequests = new Map();
 
     const startButton = document.getElementById("startButton");
     const scanAgainButton = document.getElementById("scanAgain");
@@ -410,12 +410,20 @@
     // STATUS API
     // ============================================================
 
+    // Tidak melakukan ping otomatis ke Apps Script.
+    // Status server akan diverifikasi saat QR benar-benar dikirim.
     function updateApiStatus(text, online) {
       apiStatus.innerHTML =
         '<span class="status-dot ' +
         (online ? "online" : "offline") +
         '"></span>' +
         escapeHtml(text);
+    }
+
+    function setServerChecking() {
+      apiStatus.innerHTML =
+        '<span class="status-dot"></span>' +
+        ' Mengirim data ke server...';
     }
 
     // ============================================================
@@ -691,214 +699,143 @@
 
     // ============================================================
     // KOMUNIKASI KE GOOGLE APPS SCRIPT
-    // JSONP LANGSUNG, TANPA FETCH / POPUP / IFRAME
+    // POST FORM + HIDDEN IFRAME
     // ============================================================
-    // GitHub Pages tidak dapat membaca response Apps Script
-    // dengan fetch() biasa karena CORS. JSONP tidak memerlukan
-    // akses CORS karena browser memuat response sebagai script.
+    //
+    // GitHub Pages tidak membaca response Apps Script melalui fetch()
+    // karena CORS. Jalur ini juga tidak menggunakan JSONP.
+    // Form POST lintas-origin boleh dilakukan browser, dan response
+    // dimuat di iframe tersembunyi. Halaman response Apps Script
+    // kemudian mengirim hasil ke halaman ini dengan postMessage().
     function requestAppsScript(qrText) {
       return new Promise((resolve, reject) => {
-
         const requestId =
-          "checkin_" +
-          Date.now() +
-          "_" +
-          (++apiRequestCounter) +
-          "_" +
-          Math.random().toString(36).slice(2, 10);
+          'checkin_' + Date.now() + '_' + (++requestCounter);
 
-        const callbackName =
-          "__checkinCallback_" +
-          requestId.replace(/[^A-Za-z0-9_$]/g, "_");
+        const iframeName = 'apiFrame_' + requestId;
+        const iframe = document.createElement('iframe');
+        iframe.name = iframeName;
+        iframe.title = 'API Check-in';
+        iframe.setAttribute('aria-hidden', 'true');
+        iframe.style.position = 'fixed';
+        iframe.style.width = '1px';
+        iframe.style.height = '1px';
+        iframe.style.opacity = '0';
+        iframe.style.pointerEvents = 'none';
+        iframe.style.border = '0';
+        iframe.style.left = '-10000px';
+        iframe.style.top = '-10000px';
 
-        const script = document.createElement("script");
+        const form = document.createElement('form');
+        form.method = 'POST';
+        form.action = GOOGLE_SCRIPT_URL;
+        form.target = iframeName;
+        form.style.display = 'none';
+
+        const actionInput = document.createElement('input');
+        actionInput.type = 'hidden';
+        actionInput.name = 'action';
+        actionInput.value = 'check';
+
+        const qrInput = document.createElement('input');
+        qrInput.type = 'hidden';
+        qrInput.name = 'qr';
+        qrInput.value = String(qrText ?? '');
+
+        const requestInput = document.createElement('input');
+        requestInput.type = 'hidden';
+        requestInput.name = 'requestId';
+        requestInput.value = requestId;
+
+        form.appendChild(actionInput);
+        form.appendChild(qrInput);
+        form.appendChild(requestInput);
+        document.body.appendChild(iframe);
+        document.body.appendChild(form);
 
         let finished = false;
         let timeoutId = null;
 
         function cleanup() {
-
           if (timeoutId) {
             clearTimeout(timeoutId);
             timeoutId = null;
           }
 
-          try {
-            delete window[callbackName];
-          } catch (_) {
-            window[callbackName] = undefined;
+          pendingRequests.delete(requestId);
+
+          if (form.parentNode) {
+            form.parentNode.removeChild(form);
           }
 
-          if (script.parentNode) {
-            script.parentNode.removeChild(script);
-          }
+          setTimeout(() => {
+            if (iframe.parentNode) {
+              iframe.parentNode.removeChild(iframe);
+            }
+          }, 300);
         }
 
         function finishSuccess(data) {
-
           if (finished) return;
-
           finished = true;
           cleanup();
+          updateApiStatus('Server check-in terhubung.', true);
           resolve(data);
         }
 
         function finishError(message) {
-
           if (finished) return;
-
           finished = true;
           cleanup();
+          updateApiStatus('Server belum terhubung. Akan dicoba lagi saat scan.', false);
           reject(new Error(message));
         }
 
-        window[callbackName] = function(data) {
-          finishSuccess(data || {});
-        };
+        pendingRequests.set(requestId, finishSuccess);
 
-        script.onerror = function() {
+        iframe.onerror = function() {
           finishError(
-            "Server Google Apps Script tidak dapat dihubungi. " +
-            "Periksa deployment Web App dan pastikan aksesnya \"Siapa saja\"."
+            'Google Apps Script tidak dapat menerima request. Pastikan deployment Web App aktif dan aksesnya "Siapa saja".'
           );
         };
-
-        const params = new URLSearchParams();
-
-        params.set("action", "check");
-        params.set("qr", String(qrText ?? ""));
-        params.set("callback", callbackName);
-        params.set("_", String(Date.now()));
-
-        script.src =
-          GOOGLE_SCRIPT_URL +
-          "?" +
-          params.toString();
-
-        script.async = true;
-
-        document.head.appendChild(script);
 
         timeoutId = setTimeout(function() {
-
           finishError(
-            "Google Apps Script tidak memberikan respons dalam " +
-            (API_TIMEOUT_MS / 1000) +
-            " detik. Pastikan deployment Web App aktif, " +
-            "versi terbaru sudah diterapkan, dan aksesnya " +
-            "disetel ke \"Siapa saja\"."
+            'Server tidak memberikan respons dalam 20 detik. Pastikan deployment Web App sudah diperbarui.'
           );
-
         }, API_TIMEOUT_MS);
+
+        try {
+          form.submit();
+        } catch (error) {
+          finishError(
+            error && error.message
+              ? error.message
+              : 'Gagal mengirim request ke server.'
+          );
+        }
       });
     }
 
-    // ============================================================
-    // TES KONEKSI API
-    // ============================================================
+    window.addEventListener('message', function(event) {
+      if (event.origin !== 'https://script.google.com' &&
+          event.origin !== 'https://script.googleusercontent.com') {
+        return;
+      }
 
-    function pingAppsScript() {
+      const message = event.data || {};
 
-      return new Promise((resolve, reject) => {
+      if (message.type !== 'CHECKIN_RESULT') {
+        return;
+      }
 
-        const callbackName =
-          "__checkinPing_" +
-          Date.now() +
-          "_" +
-          Math.random().toString(36).slice(2, 10);
+      const requestId = String(message.requestId || '');
+      const resolver = pendingRequests.get(requestId);
 
-        const script = document.createElement("script");
-
-        let finished = false;
-        let timeoutId = null;
-
-        function cleanup() {
-
-          if (timeoutId) {
-            clearTimeout(timeoutId);
-            timeoutId = null;
-          }
-
-          try {
-            delete window[callbackName];
-          } catch (_) {
-            window[callbackName] = undefined;
-          }
-
-          if (script.parentNode) {
-            script.parentNode.removeChild(script);
-          }
-        }
-
-        function finish(data) {
-
-          if (finished) return;
-
-          finished = true;
-          cleanup();
-
-          if (data && data.status === "OK") {
-            resolve(data);
-          } else {
-            reject(
-              new Error(
-                data && data.pesan
-                  ? data.pesan
-                  : "Respons API tidak valid."
-              )
-            );
-          }
-        }
-
-        window[callbackName] = function(data) {
-          finish(data || {});
-        };
-
-        script.onerror = function() {
-
-          if (finished) return;
-
-          finished = true;
-          cleanup();
-
-          reject(
-            new Error(
-              "API Google Apps Script tidak dapat dihubungi."
-            )
-          );
-        };
-
-        const params = new URLSearchParams();
-
-        params.set("action", "ping");
-        params.set("callback", callbackName);
-        params.set("_", String(Date.now()));
-
-        script.src =
-          GOOGLE_SCRIPT_URL +
-          "?" +
-          params.toString();
-
-        script.async = true;
-
-        document.head.appendChild(script);
-
-        timeoutId = setTimeout(function() {
-
-          if (finished) return;
-
-          finished = true;
-          cleanup();
-
-          reject(
-            new Error(
-              "Ping API timeout."
-            )
-          );
-
-        }, 10000);
-      });
-    }
+      if (typeof resolver === 'function') {
+        resolver(message.data || {});
+      }
+    });
 
     // ============================================================
     // TAMPILKAN HASIL
@@ -1033,29 +970,10 @@
     });
 
     // ============================================================
-    // CEK SERVER SAAT HALAMAN DIBUKA
-    // ============================================================
-
-    pingAppsScript()
-      .then(function(data) {
-        updateApiStatus(
-          "Server terhubung: " +
-          (data.pesan || "API aktif."),
-          true
-        );
-      })
-      .catch(function(error) {
-        updateApiStatus(
-          "Server belum terhubung. Akan dicoba lagi saat scan.",
-          false
-        );
-        console.warn("API ping:", error);
-      });
-
-    // ============================================================
     // START
     // ============================================================
 
+    updateApiStatus('Server belum terhubung. Akan dicoba lagi saat scan.', false);
   </script>
 </body>
 </html>
