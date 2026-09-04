@@ -306,7 +306,7 @@
       Scanner harus dibuka dari URL <b>HTTPS GitHub Pages</b>, bukan dari preview editor.
       <br><br>
       <span id="apiStatus">
-        <span class="status-dot"></span> Menghubungkan ke server...
+        <span class="status-dot"></span> Server akan dipanggil saat QR dipindai.
       </span>
     </div>
 
@@ -324,7 +324,8 @@
     const GOOGLE_SCRIPT_URL =
       "https://script.google.com/macros/s/AKfycbwpZRPTpi74hlQP48SqOEs1mScsH_C_5njMGSGTXJttEcOYxPN_8FkHnC700sWkC-eM/exec";
 
-    const API_TIMEOUT_MS = 15000;
+    const API_TIMEOUT_MS = 20000;
+    const GITHUB_ORIGIN = "https://daksacustomstore.github.io";
 
     // ============================================================
     // GLOBAL
@@ -334,7 +335,8 @@
     let scanning = false;
     let processing = false;
     let cameraStream = null;
-    let jsonpCounter = 0;
+    let apiBridgeWindow = null;
+    let apiRequestCounter = 0;
 
     const startButton = document.getElementById("startButton");
     const scanAgainButton = document.getElementById("scanAgain");
@@ -417,18 +419,30 @@
         escapeHtml(text);
     }
 
-    function checkApi() {
-      requestAppsScript("__PING__")
-        .then(data => {
-          if (data && data.status === "OK") {
-            updateApiStatus("Server check-in siap.", true);
-          } else {
-            updateApiStatus("Server merespons.", true);
-          }
-        })
-        .catch(() => {
-          updateApiStatus("Server akan dicek saat QR dipindai.", false);
-        });
+    function prepareApiBridge() {
+      // Dibuka saat user menekan tombol scanner sehingga browser
+      // menganggap window ini sebagai user-initiated. Window ini
+      // kemudian dipakai sebagai jembatan aman ke Apps Script.
+      try {
+        if (apiBridgeWindow && !apiBridgeWindow.closed) {
+          return true;
+        }
+
+        apiBridgeWindow = window.open(
+          "about:blank",
+          "checkinApiBridge",
+          "popup,width=320,height=220,left=20,top=20"
+        );
+
+        if (apiBridgeWindow) {
+          try {
+            apiBridgeWindow.document.title = "Check-in";
+          } catch (_) {}
+          return true;
+        }
+      } catch (_) {}
+
+      return false;
     }
 
     // ============================================================
@@ -505,6 +519,16 @@
 
     async function startScanner() {
       if (scanning) return;
+
+      // Siapkan jendela API dari user gesture. Ini menghindari
+      // CORS/JSONP/iframe sandbox yang selama ini menyebabkan timeout.
+      if (!prepareApiBridge()) {
+        showError(
+          "JEMBATAN SERVER TIDAK DAPAT DIBUKA",
+          "Browser memblokir jendela komunikasi ke Google Apps Script. Izinkan popup untuk situs GitHub Pages ini, lalu tekan MULAI SCANNER lagi."
+        );
+        return;
+      }
 
       processing = false;
       cameraHelp.style.display = "none";
@@ -704,57 +728,52 @@
 
     // ============================================================
     // KOMUNIKASI KE GOOGLE APPS SCRIPT
-    // GITHUB PAGES -> HIDDEN IFRAME -> APPS SCRIPT
+    // POPUP BRIDGE + POSTMESSAGE
+    // ============================================================
     //
-    // Jangan memakai <script src="...Apps Script..."> untuk JSONP.
-    // Apps Script dapat mengembalikan halaman HTML hasil redirect, dan
-    // browser modern dapat memblokirnya sebagai MIME text/html.
-    // IFRAME + postMessage menghindari masalah CORS dan MIME tersebut.
+    // GitHub Pages tidak dapat membaca respons Apps Script dengan
+    // fetch biasa karena Apps Script tidak menyediakan CORS untuk
+    // endpoint ini. JSONP juga tidak stabil karena respons Web App
+    // dapat melewati redirect Google dengan MIME text/html.
+    //
+    // Karena popup dibuka dari tombol user, popup tidak diblokir.
+    // Setelah QR terbaca, popup tersebut dinavigasikan ke Apps Script.
+    // Apps Script memproses QR lalu mengirim hasil kembali ke opener
+    // melalui window.opener.postMessage(). Setelah itu popup menutup.
     // ============================================================
     function requestAppsScript(qrText) {
       return new Promise((resolve, reject) => {
         const requestId =
-          'checkin_' +
-          Date.now() +
-          '_' +
-          Math.floor(Math.random() * 1000000);
+          "checkin_" + Date.now() + "_" +
+          (++apiRequestCounter) + "_" +
+          Math.random().toString(36).slice(2, 10);
 
-        const iframe = document.createElement('iframe');
+        if (!apiBridgeWindow || apiBridgeWindow.closed) {
+          reject(new Error(
+            "Jendela komunikasi ke Google Apps Script tidak tersedia. Tekan SCAN PESERTA BERIKUTNYA lalu MULAI SCANNER lagi."
+          ));
+          return;
+        }
+
         let finished = false;
         let timeoutId = null;
-
-        iframe.setAttribute('aria-hidden', 'true');
-        iframe.tabIndex = -1;
-        iframe.style.position = 'fixed';
-        iframe.style.left = '-10000px';
-        iframe.style.top = '-10000px';
-        iframe.style.width = '1px';
-        iframe.style.height = '1px';
-        iframe.style.border = '0';
-        iframe.style.opacity = '0';
-        iframe.style.pointerEvents = 'none';
 
         function cleanup() {
           if (timeoutId) {
             clearTimeout(timeoutId);
             timeoutId = null;
           }
-
-          window.removeEventListener('message', onMessage);
-
-          if (iframe.parentNode) {
-            iframe.parentNode.removeChild(iframe);
-          }
+          window.removeEventListener("message", onMessage);
         }
 
-        function succeed(data) {
+        function finishSuccess(data) {
           if (finished) return;
           finished = true;
           cleanup();
           resolve(data);
         }
 
-        function fail(message) {
+        function finishError(message) {
           if (finished) return;
           finished = true;
           cleanup();
@@ -762,35 +781,59 @@
         }
 
         function onMessage(event) {
-          // Hanya terima pesan dari iframe request ini.
-          if (event.source !== iframe.contentWindow) return;
+          // Pesan harus datang dari popup yang memang kita buka.
+          // event.origin dapat berupa script.google.com atau
+          // script.googleusercontent.com tergantung redirect Web App.
+          if (event.source !== apiBridgeWindow) return;
+
+          const allowedOrigins = [
+            "https://script.google.com",
+            "https://script.googleusercontent.com"
+          ];
+
+          if (allowedOrigins.indexOf(event.origin) === -1) return;
 
           const payload = event.data;
-          if (!payload || payload.type !== 'CHECKIN_RESPONSE') return;
-          if (String(payload.requestId || '') !== requestId) return;
 
-          succeed(payload.data || {});
+          if (!payload || typeof payload !== "object") return;
+          if (payload.type !== "CHECKIN_RESPONSE") return;
+          if (String(payload.requestId || "") !== requestId) return;
+
+          finishSuccess(payload.data || {});
         }
 
-        window.addEventListener('message', onMessage);
+        window.addEventListener("message", onMessage);
 
-        timeoutId = setTimeout(() => {
-          fail(
-            'Google Apps Script tidak mengirim respons dalam ' +
+        timeoutId = setTimeout(function() {
+          finishError(
+            "Google Apps Script tidak memberikan respons dalam " +
             (API_TIMEOUT_MS / 1000) +
-            ' detik. Periksa deployment Web App dan pastikan aksesnya "Siapa saja".'
+            " detik. Pastikan deployment Web App masih aktif, versi terbaru sudah diterapkan, dan aksesnya disetel ke \"Siapa saja\"."
           );
         }, API_TIMEOUT_MS);
 
         const params = new URLSearchParams();
-        params.set('action', 'check');
-        params.set('qr', String(qrText ?? ''));
-        params.set('mode', 'iframe');
-        params.set('requestId', requestId);
-        params.set('_', String(Date.now()));
+        params.set("action", "check");
+        params.set("mode", "popup");
+        params.set("requestId", requestId);
+        params.set("qr", String(qrText ?? ""));
+        params.set("origin", GITHUB_ORIGIN);
+        params.set("_", String(Date.now()));
 
-        iframe.src = GOOGLE_SCRIPT_URL + '?' + params.toString();
-        document.body.appendChild(iframe);
+        try {
+          apiBridgeWindow.location.href =
+            GOOGLE_SCRIPT_URL + "?" + params.toString();
+          try {
+            apiBridgeWindow.focus();
+          } catch (_) {}
+          try {
+            window.focus();
+          } catch (_) {}
+        } catch (error) {
+          finishError(
+            "Tidak dapat membuka koneksi ke Google Apps Script."
+          );
+        }
       });
     }
 
@@ -923,6 +966,11 @@
 
     window.addEventListener("beforeunload", () => {
       stopScanner();
+      try {
+        if (apiBridgeWindow && !apiBridgeWindow.closed) {
+          apiBridgeWindow.close();
+        }
+      } catch (_) {}
       stopRawCameraStream();
     });
 
@@ -930,7 +978,6 @@
     // START
     // ============================================================
 
-    checkApi();
   </script>
 </body>
 </html>
