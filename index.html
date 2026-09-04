@@ -780,7 +780,7 @@
             (API_TIMEOUT_MS / 1000) +
             ' detik. Periksa deployment Web App dan pastikan aksesnya "Siapa saja".'
           );
-        }, JSONP_TIMEOUT_MS);
+        }, API_TIMEOUT_MS);
 
         const params = new URLSearchParams();
         params.set('action', 'check');
