@@ -1,300 +1,816 @@
 <!DOCTYPE html>
 <html lang="id">
-
 <head>
+  <meta charset="UTF-8">
 
-<meta charset="UTF-8">
+  <meta
+    name="viewport"
+    content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"
+  >
 
-<meta
-  name="viewport"
-  content="width=device-width, initial-scale=1.0"
->
+  <title>Check-in Event</title>
 
-<title>Check-in Event</title>
+  <script src="https://unpkg.com/html5-qrcode" type="text/javascript"></script>
 
-<script src="https://unpkg.com/html5-qrcode"></script>
+  <style>
+    * {
+      box-sizing: border-box;
+    }
 
-<style>
+    body {
+      margin: 0;
+      padding: 20px 12px;
+      background: #f4f6f8;
+      font-family: Arial, Helvetica, sans-serif;
+      color: #111827;
+    }
 
-* {
-  box-sizing: border-box;
-}
+    .container {
+      width: 100%;
+      max-width: 520px;
+      margin: 0 auto;
+    }
 
-body {
+    h1 {
+      text-align: center;
+      margin: 8px 0 4px;
+      font-size: 30px;
+      font-weight: 800;
+    }
 
-  margin: 0;
+    .subtitle {
+      text-align: center;
+      color: #6b7280;
+      font-size: 18px;
+      margin-bottom: 28px;
+    }
 
-  padding: 20px;
+    button {
+      width: 100%;
+      border: 0;
+      border-radius: 8px;
+      padding: 15px;
+      font-size: 18px;
+      font-weight: 700;
+      cursor: pointer;
+    }
 
-  background: #f3f4f6;
+    #startButton {
+      background: #1f78e8;
+      color: white;
+      margin-bottom: 10px;
+    }
 
-  font-family:
-    Arial,
-    Helvetica,
-    sans-serif;
+    #nextButton {
+      background: #111827;
+      color: white;
+      margin-top: 10px;
+      display: none;
+    }
 
-}
+    #stopButton {
+      background: #dc2626;
+      color: white;
+      margin-top: 10px;
+      display: none;
+    }
 
-.container {
+    #reader {
+      width: 100%;
+      margin-top: 15px;
+      background: white;
+      border-radius: 10px;
+      overflow: hidden;
+      display: none;
+    }
 
-  max-width: 500px;
+    .status {
+      background: white;
+      border-radius: 10px;
+      padding: 18px;
+      margin-top: 12px;
+      text-align: center;
+      box-shadow: 0 2px 8px rgba(0,0,0,.08);
+    }
 
-  margin: auto;
+    .status.error {
+      border-top: 4px solid #ef4444;
+      color: #dc2626;
+    }
 
-}
+    .status.success {
+      border-top: 4px solid #16a34a;
+      color: #15803d;
+    }
 
-.header {
+    .status.warning {
+      border-top: 4px solid #f59e0b;
+      color: #b45309;
+    }
 
-  text-align: center;
+    .status-title {
+      font-size: 21px;
+      font-weight: 800;
+      margin-bottom: 8px;
+    }
 
-  margin-bottom: 20px;
+    .status-text {
+      font-size: 14px;
+      line-height: 1.5;
+    }
 
-}
+    .participant {
+      display: none;
+      background: white;
+      border-radius: 10px;
+      margin-top: 12px;
+      padding: 18px;
+      box-shadow: 0 2px 8px rgba(0,0,0,.08);
+    }
 
-.header h1 {
+    .participant-title {
+      font-size: 13px;
+      color: #6b7280;
+      margin-bottom: 4px;
+    }
 
-  margin: 0;
+    .participant-name {
+      font-size: 25px;
+      font-weight: 800;
+      margin-bottom: 8px;
+    }
 
-  font-size: 26px;
+    .participant-code {
+      font-size: 14px;
+      color: #6b7280;
+      word-break: break-all;
+    }
 
-}
+    .hidden {
+      display: none !important;
+    }
 
-.header p {
-
-  margin-top: 7px;
-
-  color: #666;
-
-}
-
-button {
-
-  width: 100%;
-
-  border: none;
-
-  border-radius: 12px;
-
-  padding: 17px;
-
-  font-size: 18px;
-
-  font-weight: bold;
-
-  background: #1a73e8;
-
-  color: white;
-
-}
-
-button:active {
-
-  transform: scale(.98);
-
-}
-
-#reader {
-
-  display: none;
-
-  width: 100%;
-
-  margin-top: 18px;
-
-  border-radius: 15px;
-
-  overflow: hidden;
-
-  background: black;
-
-}
-
-#status {
-
-  margin-top: 15px;
-
-  padding: 15px;
-
-  background: white;
-
-  border-radius: 12px;
-
-  text-align: center;
-
-  color: #666;
-
-}
-
-</style>
-
+    .loading {
+      text-align: center;
+      padding: 12px;
+      color: #6b7280;
+      font-size: 14px;
+    }
+  </style>
 </head>
-
 
 <body>
 
-
 <div class="container">
 
+  <h1>CHECK-IN EVENT</h1>
 
-  <div class="header">
-
-    <h1>
-      CHECK-IN EVENT
-    </h1>
-
-    <p>
-      Scan QR Code Peserta
-    </p>
-
+  <div class="subtitle">
+    Scan QR Code Peserta
   </div>
 
-
-  <button
-    id="startButton"
-    onclick="startCamera()"
-  >
-
+  <button id="startButton">
     📷 MULAI SCANNER
-
   </button>
-
 
   <div id="reader"></div>
 
-
-  <div id="status">
-
-    Tekan tombol
-    <b>MULAI SCANNER</b>
-    untuk mengaktifkan kamera.
-
+  <div id="statusBox" class="status hidden">
+    <div id="statusTitle" class="status-title"></div>
+    <div id="statusText" class="status-text"></div>
   </div>
 
+  <div id="participantBox" class="participant">
+    <div class="participant-title">
+      PESERTA
+    </div>
+
+    <div id="participantName" class="participant-name">
+      -
+    </div>
+
+    <div id="participantCode" class="participant-code">
+      -
+    </div>
+  </div>
+
+  <button id="nextButton">
+    📷 SCAN PESERTA BERIKUTNYA
+  </button>
+
+  <button id="stopButton">
+    ✕ TUTUP SCANNER
+  </button>
 
 </div>
 
 
 <script>
 
+  /*
+   ==========================================================
+   KONFIGURASI
+   ==========================================================
+  */
 
-let scanner = null;
+  // ========================================================
+  // GANTI BAGIAN INI DENGAN URL WEB APP GOOGLE APPS SCRIPT
+  // YANG SUDAH ANDA GUNAKAN SEBELUMNYA
+  // ========================================================
 
-let scanning = false;
+  const GOOGLE_SCRIPT_URL =
+    "https://script.google.com/macros/s/AKfycbwpZRPTpi74hlQP48SqOEs1mScsH_C_5njMGSGTXJttEcOYxPN_8FkHnC7O0sWkC-eM/exec";
 
 
-function startCamera() {
+  /*
+   ==========================================================
+   VARIABEL
+   ==========================================================
+  */
+
+  let html5QrCode = null;
+  let scannerRunning = false;
+  let processing = false;
+
+  const startButton =
+    document.getElementById("startButton");
+
+  const nextButton =
+    document.getElementById("nextButton");
+
+  const stopButton =
+    document.getElementById("stopButton");
+
+  const reader =
+    document.getElementById("reader");
+
+  const statusBox =
+    document.getElementById("statusBox");
+
+  const statusTitle =
+    document.getElementById("statusTitle");
+
+  const statusText =
+    document.getElementById("statusText");
+
+  const participantBox =
+    document.getElementById("participantBox");
+
+  const participantName =
+    document.getElementById("participantName");
+
+  const participantCode =
+    document.getElementById("participantCode");
 
 
-  if (scanning) {
+  /*
+   ==========================================================
+   STATUS
+   ==========================================================
+  */
 
-    return;
+  function showStatus(type, title, text) {
+
+    statusBox.className =
+      "status " + type;
+
+    statusBox.classList.remove("hidden");
+
+    statusTitle.textContent = title;
+
+    statusText.textContent = text;
+  }
+
+
+  function hideStatus() {
+
+    statusBox.classList.add("hidden");
+  }
+
+
+  /*
+   ==========================================================
+   TAMPILKAN PESERTA
+   ==========================================================
+  */
+
+  function showParticipant(name, code) {
+
+    participantBox.style.display = "block";
+
+    participantName.textContent =
+      name || "Peserta";
+
+    participantCode.textContent =
+      "Kode: " + (code || "-");
+  }
+
+
+  function hideParticipant() {
+
+    participantBox.style.display = "none";
+
+    participantName.textContent = "-";
+
+    participantCode.textContent = "-";
+  }
+
+
+  /*
+   ==========================================================
+   MULAI SCANNER
+   ==========================================================
+  */
+
+  async function startScanner() {
+
+    if (scannerRunning) {
+      return;
+    }
+
+    hideStatus();
+    hideParticipant();
+
+    processing = false;
+
+    reader.style.display = "block";
+
+    startButton.style.display = "none";
+
+    nextButton.style.display = "none";
+
+    stopButton.style.display = "block";
+
+
+    /*
+     --------------------------------------------------------
+     PENTING:
+     Kita tidak menggunakan konfigurasi facingMode
+     yang menyebabkan error sebelumnya.
+     --------------------------------------------------------
+    */
+
+    html5QrCode =
+      new Html5Qrcode("reader");
+
+
+    try {
+
+      /*
+       ------------------------------------------------------
+       Minta akses kamera.
+       Browser Android akan memunculkan popup izin kamera
+       jika izin belum pernah diberikan.
+       ------------------------------------------------------
+      */
+
+      await html5QrCode.start(
+
+        {
+          facingMode: "environment"
+        },
+
+        {
+          fps: 10,
+
+          qrbox: function(viewfinderWidth, viewfinderHeight) {
+
+            const minEdge =
+              Math.min(
+                viewfinderWidth,
+                viewfinderHeight
+              );
+
+            return {
+              width: Math.floor(minEdge * 0.70),
+              height: Math.floor(minEdge * 0.70)
+            };
+          },
+
+          aspectRatio: 1.0
+        },
+
+        onScanSuccess,
+
+        onScanFailure
+
+      );
+
+      scannerRunning = true;
+
+      showStatus(
+        "success",
+        "SCANNER AKTIF",
+        "Arahkan kamera ke QR Code peserta."
+      );
+
+    } catch (error) {
+
+      console.error(error);
+
+      scannerRunning = false;
+
+      reader.style.display = "none";
+
+      startButton.style.display = "block";
+
+      nextButton.style.display = "none";
+
+      stopButton.style.display = "none";
+
+
+      let message =
+        "Kamera tidak dapat dibuka.";
+
+      if (
+        error &&
+        error.name === "NotAllowedError"
+      ) {
+
+        message =
+          "Izin kamera ditolak. Silakan pilih IZINKAN ketika browser meminta akses kamera.";
+
+      } else if (
+        error &&
+        error.name === "NotFoundError"
+      ) {
+
+        message =
+          "Kamera tidak ditemukan pada perangkat ini.";
+
+      } else if (
+        error &&
+        error.name === "NotReadableError"
+      ) {
+
+        message =
+          "Kamera sedang digunakan aplikasi lain.";
+
+      } else if (
+        error &&
+        error.name === "SecurityError"
+      ) {
+
+        message =
+          "Browser memblokir akses kamera. Pastikan scanner dibuka menggunakan HTTPS.";
+
+      } else if (
+        error &&
+        error.message
+      ) {
+
+        message =
+          error.message;
+      }
+
+
+      showStatus(
+        "error",
+        "KAMERA TIDAK DAPAT DIBUKA",
+        message
+      );
+    }
+  }
+
+
+  /*
+   ==========================================================
+   QR BERHASIL DIBACA
+   ==========================================================
+  */
+
+  async function onScanSuccess(decodedText, decodedResult) {
+
+    if (processing) {
+      return;
+    }
+
+    processing = true;
+
+
+    /*
+     --------------------------------------------------------
+     Hentikan kamera sementara agar QR yang sama tidak
+     terbaca berkali-kali.
+     --------------------------------------------------------
+    */
+
+    try {
+
+      await stopCameraOnly();
+
+    } catch (error) {
+
+      console.log(error);
+    }
+
+
+    showStatus(
+      "warning",
+      "MEMPROSES...",
+      "Data peserta sedang diperiksa."
+    );
+
+
+    /*
+     --------------------------------------------------------
+     decodedText adalah isi QR Code.
+     --------------------------------------------------------
+    */
+
+    const qrData =
+      decodedText.trim();
+
+
+    console.log(
+      "QR DATA:",
+      qrData
+    );
+
+
+    /*
+     --------------------------------------------------------
+     Kirim data QR ke Google Apps Script.
+     --------------------------------------------------------
+    */
+
+    try {
+
+      const result =
+        await sendToGoogleSheet(qrData);
+
+
+      console.log(
+        "SERVER RESPONSE:",
+        result
+      );
+
+
+      if (
+        result &&
+        result.success
+      ) {
+
+        showParticipant(
+          result.nama ||
+          result.name ||
+          "Peserta",
+          result.kode ||
+          result.code ||
+          qrData
+        );
+
+
+        showStatus(
+          "success",
+          "CHECK-IN BERHASIL",
+          result.message ||
+          "Peserta berhasil dicatat sebagai HADIR."
+        );
+
+
+      } else {
+
+        showStatus(
+          "error",
+          "CHECK-IN GAGAL",
+          (
+            result &&
+            result.message
+          )
+          ||
+          "Data QR tidak dapat diproses."
+        );
+      }
+
+
+    } catch (error) {
+
+      console.error(error);
+
+      showStatus(
+        "error",
+        "GAGAL TERHUBUNG",
+        "Tidak dapat menghubungi server. Periksa koneksi internet."
+      );
+    }
+
+
+    nextButton.style.display = "block";
+
+    stopButton.style.display = "none";
+  }
+
+
+  /*
+   ==========================================================
+   QR GAGAL DIBACA
+   ==========================================================
+  */
+
+  function onScanFailure(errorMessage) {
+
+    /*
+     Tidak perlu menampilkan error setiap frame.
+     html5-qrcode memang akan terus mencoba membaca QR.
+    */
 
   }
 
 
-  document
-    .getElementById("startButton")
-    .style.display = "none";
+  /*
+   ==========================================================
+   KIRIM KE GOOGLE SHEETS
+   ==========================================================
+  */
+
+  async function sendToGoogleSheet(qrData) {
+
+    if (
+      !GOOGLE_SCRIPT_URL ||
+      GOOGLE_SCRIPT_URL.includes(
+        "PASTE_URL"
+      )
+    ) {
+
+      throw new Error(
+        "URL Google Apps Script belum diisi."
+      );
+    }
 
 
-  document
-    .getElementById("reader")
-    .style.display = "block";
+    const url =
+      GOOGLE_SCRIPT_URL +
+      "?qr=" +
+      encodeURIComponent(qrData);
 
 
-  document
-    .getElementById("status")
-    .innerHTML =
-      "Meminta izin kamera...";
-
-
-  scanner =
-    new Html5Qrcode("reader");
-
-
-  scanner.start(
-
-    {
-      facingMode: {
-        ideal: "environment"
-      }
-    },
-
-    {
-      fps: 10,
-
-      qrbox: {
-        width: 250,
-        height: 250
-      }
-
-    },
-
-    function(decodedText) {
-
-      console.log(
-        "QR:",
-        decodedText
+    const response =
+      await fetch(
+        url,
+        {
+          method: "GET",
+          redirect: "follow"
+        }
       );
 
 
-      document
-        .getElementById("status")
-        .innerHTML =
-          "<b>QR TERBACA</b><br><br>" +
-          decodedText;
+    if (!response.ok) {
 
-    },
-
-    function(errorMessage) {
-
-      // Abaikan error pembacaan frame
-
+      throw new Error(
+        "HTTP error " +
+        response.status
+      );
     }
 
-  )
 
-  .then(function() {
-
-    scanning = true;
-
-    document
-      .getElementById("status")
-      .innerHTML =
-        "📷 Kamera aktif.<br>" +
-        "Arahkan kamera ke QR peserta.";
-
-  })
-
-  .catch(function(error) {
+    const text =
+      await response.text();
 
 
-    document
-      .getElementById("reader")
-      .style.display = "none";
+    /*
+     --------------------------------------------------------
+     Google Apps Script seharusnya mengembalikan JSON.
+     --------------------------------------------------------
+    */
+
+    try {
+
+      return JSON.parse(text);
+
+    } catch (error) {
+
+      console.error(
+        "Response bukan JSON:",
+        text
+      );
+
+      throw new Error(
+        "Response server tidak valid."
+      );
+    }
+  }
 
 
-    document
-      .getElementById("startButton")
-      .style.display = "block";
+  /*
+   ==========================================================
+   STOP CAMERA
+   ==========================================================
+  */
+
+  async function stopCameraOnly() {
+
+    if (
+      html5QrCode &&
+      scannerRunning
+    ) {
+
+      try {
+
+        await html5QrCode.stop();
+
+      } catch (error) {
+
+        console.log(
+          "Stop camera:",
+          error
+        );
+      }
+    }
+
+    scannerRunning = false;
+  }
 
 
-    document
-      .getElementById("status")
-      .innerHTML =
-        "<b style='color:red'>" +
-        "KAMERA TIDAK DAPAT DIBUKA" +
-        "</b><br><br>" +
-        error;
+  /*
+   ==========================================================
+   TUTUP SCANNER
+   ==========================================================
+  */
 
-  });
+  async function stopScanner() {
 
-}
+    await stopCameraOnly();
 
+    reader.style.display = "none";
+
+    startButton.style.display = "block";
+
+    nextButton.style.display = "none";
+
+    stopButton.style.display = "none";
+
+    hideStatus();
+
+    hideParticipant();
+
+    processing = false;
+  }
+
+
+  /*
+   ==========================================================
+   PESERTA BERIKUTNYA
+   ==========================================================
+  */
+
+  async function scanNext() {
+
+    processing = false;
+
+    hideStatus();
+
+    hideParticipant();
+
+    nextButton.style.display = "none";
+
+    await startScanner();
+  }
+
+
+  /*
+   ==========================================================
+   EVENT BUTTON
+   ==========================================================
+  */
+
+  startButton.addEventListener(
+    "click",
+    startScanner
+  );
+
+
+  nextButton.addEventListener(
+    "click",
+    scanNext
+  );
+
+
+  stopButton.addEventListener(
+    "click",
+    stopScanner
+  );
+
+
+  /*
+   ==========================================================
+   CEK HTTPS
+   ==========================================================
+  */
+
+  if (
+    location.protocol !== "https:" &&
+    location.hostname !== "localhost"
+  ) {
+
+    showStatus(
+      "warning",
+      "PERINGATAN",
+      "Scanner kamera membutuhkan koneksi HTTPS."
+    );
+  }
 
 </script>
 
-
 </body>
-
 </html>
