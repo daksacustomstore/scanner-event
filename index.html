@@ -489,10 +489,21 @@
         }
 
         function onMessage(event) {
-          // Source harus benar-benar iframe yang kita buat.
-          // Ini adalah pemeriksaan terpenting agar pesan dari halaman lain
-          // tidak dianggap sebagai respons check-in.
-          if (!frame || event.source !== frame.contentWindow) return;
+          // Apps Script HtmlService dapat menjalankan kode hasil di
+          // sandbox iframe internal. Karena itu event.source TIDAK selalu
+          // sama dengan frame.contentWindow yang kita buat.
+          //
+          // Keamanan tetap dijaga dengan dua pemeriksaan:
+          // 1. origin harus berasal dari Google Apps Script / googleusercontent
+          // 2. requestId harus sama persis dengan request yang sedang aktif.
+          const origin = String(event.origin || "");
+          if (
+            origin !== "https://script.google.com" &&
+            !origin.endsWith(".googleusercontent.com") &&
+            origin !== "https://googleusercontent.com"
+          ) {
+            return;
+          }
 
           const payload = event.data;
 
